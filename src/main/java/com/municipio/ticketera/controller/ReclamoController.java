@@ -2,9 +2,11 @@ package com.municipio.ticketera.controller;
 
 import com.municipio.ticketera.domain.Reclamo;
 import com.municipio.ticketera.domain.Ubicacion;
+import com.municipio.ticketera.dto.AsignarCuadrillaRequest;
 import com.municipio.ticketera.dto.CambioEstadoRequest;
 import com.municipio.ticketera.dto.CrearReclamoRequest;
 import com.municipio.ticketera.dto.ReclamoResponse;
+import com.municipio.ticketera.service.SvcCuadrillas;
 import com.municipio.ticketera.service.SvcReclamos;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,9 +36,11 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class ReclamoController {
 
     private final SvcReclamos svcReclamos;
+    private final SvcCuadrillas svcCuadrillas;
 
-    public ReclamoController(SvcReclamos svcReclamos) {
+    public ReclamoController(SvcReclamos svcReclamos, SvcCuadrillas svcCuadrillas) {
         this.svcReclamos = svcReclamos;
+        this.svcCuadrillas = svcCuadrillas;
     }
 
     @PostMapping
@@ -76,5 +80,15 @@ public class ReclamoController {
     @ApiResponse(responseCode = "409", description = "Transicion de estado no permitida")
     public ReclamoResponse cambiarEstado(@PathVariable UUID id, @Valid @RequestBody CambioEstadoRequest dto) {
         return ReclamoResponse.desde(svcReclamos.cambiarEstado(id, dto.estado()));
+    }
+
+    @PutMapping("/{id}/asignar-cuadrilla")
+    @Operation(summary = "Asignar una cuadrilla a mano (Panel Municipal)",
+            description = "Delega en SvcCuadrillas. Pasa el reclamo a ASIGNADO y publica reclamo.asignado.")
+    @ApiResponse(responseCode = "404", description = "Reclamo o cuadrilla inexistente")
+    @ApiResponse(responseCode = "409",
+            description = "Cuadrilla ocupada o de otra especialidad, o el reclamo no espera asignacion")
+    public ReclamoResponse asignarCuadrilla(@PathVariable UUID id, @Valid @RequestBody AsignarCuadrillaRequest dto) {
+        return ReclamoResponse.desde(svcCuadrillas.asignarCuadrilla(id, dto.cuadrillaId()));
     }
 }

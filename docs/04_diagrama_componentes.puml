@@ -33,6 +33,8 @@ package "Aplicacion: ticketera-backend.jar (monolito modular, un unico despliegu
         }
 
         component "Modulo Cuadrillas" as CompCuadrillas {
+            interface "ICuadrillasREST" as ICuadrillas
+            [REST_Cuadrillas]
             [Svc_Cuadrillas <<Observer>>]
         }
 
@@ -90,6 +92,8 @@ WebApp --> ICiudadanos
 Panel --> IReclamos
 Panel --> IResumen
 Panel --> ICiudadanos
+Panel --> ICuadrillas
+CompReclamos ..> CompCuadrillas : asignar-cuadrilla\n(llamada en proceso)
 Externos --> ISoap : SOAP (consulta de estado)
 
 CompReclamos --> IMsg : publica eventos

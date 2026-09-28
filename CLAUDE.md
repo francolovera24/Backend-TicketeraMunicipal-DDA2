@@ -89,7 +89,9 @@ Componente de utilidad (`util`, reutilizable e independiente de las capas):
 - ResumenDeZona: Value Object inmutable, NO se persiste.
 
 ## Endpoints REST (documentar con springdoc/OpenAPI)
-- POST /reclamos, GET /reclamos?barrio=, PUT /reclamos/{id}/estado
+- POST /reclamos, GET /reclamos?barrio=, GET /reclamos/{id}, PUT /reclamos/{id}/estado
+- PUT /reclamos/{id}/asignar-cuadrilla (asignacion manual del Panel, delega en
+  SvcCuadrillas.asignarCuadrilla), GET /cuadrillas?especialidad=&disponible=
 - POST /ciudadanos, GET /ciudadanos/{id}, GET /ciudadanos/{id}/reclamos
 - GET /resumen-zona?barrio=
 - Errores con @RestControllerAdvice, logging SLF4J.

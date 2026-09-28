@@ -81,6 +81,17 @@ Transiciones permitidas: `NUEVO -> EN_ANALISIS | ASIGNADO | RECHAZADO`,
 `EN_PROCESO -> RESUELTO`. Otra transicion devuelve 409. `DUPLICADO` solo lo
 asigna el sistema y es final.
 
+Asignar una cuadrilla a mano (Panel Municipal). Primero se buscan las libres
+de la especialidad del reclamo:
+```bash
+curl "http://localhost:8080/cuadrillas?especialidad=BACHEO&disponible=true"
+curl -X PUT http://localhost:8080/reclamos/<id-del-reclamo>/asignar-cuadrilla \
+  -H "Content-Type: application/json" \
+  -d '{"cuadrillaId":"<id-de-la-cuadrilla>"}'
+```
+Devuelve 409 si la cuadrilla esta ocupada o es de otra especialidad, o si el
+reclamo ya no espera asignacion.
+
 Consultar un ciudadano y su historial:
 ```bash
 curl http://localhost:8080/ciudadanos/<id-del-ciudadano>

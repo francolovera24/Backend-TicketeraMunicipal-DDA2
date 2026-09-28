@@ -174,9 +174,17 @@ class PanelMunicipal {
 
 class REST_Reclamos <<REST API>> {
     -svcReclamos : Svc_Reclamos
+    -svcCuadrillas : Svc_Cuadrillas
     +altaReclamo(dto) : Reclamo
     +consultarReclamos(filtros) : List<Reclamo>
-    +cambiarEstado(id, estado) : void
+    +consultarReclamo(id) : Reclamo
+    +cambiarEstado(id, estado) : Reclamo
+    +asignarCuadrilla(id, cuadrillaId) : Reclamo
+}
+
+class REST_Cuadrillas <<REST API>> {
+    -svcCuadrillas : Svc_Cuadrillas
+    +listarCuadrillas(especialidad, disponible) : List<Cuadrilla>
 }
 
 class REST_ResumenZona <<REST API>> {
@@ -224,8 +232,18 @@ class Svc_Cuadrillas <<Observer>> {
     -repo : Repo_Cuadrilla
     -broker : Broker
     +actualizar(evento) : void
-    +asignar(reclamo) : void
+    +asignar(reclamo) : boolean
+    +asignarCuadrilla(reclamoId, cuadrillaId) : Reclamo
+    +listarCuadrillas(especialidad, disponible) : List<Cuadrilla>
 }
+
+note right of Svc_Cuadrillas
+  asignar(): automatica, con reclamo.validado.
+  asignarCuadrilla(): manual desde el Panel
+  (PUT /reclamos/{id}/asignar-cuadrilla); valida
+  especialidad y disponibilidad (409 si no).
+  Ambas publican reclamo.asignado.
+end note
 
 class Svc_IA <<Strategy Context>> {
     -estrategias : List<CriticidadStrategy>
@@ -447,8 +465,11 @@ WebApp ..> REST_Ciudadanos : usa
 PanelMunicipal ..> REST_Reclamos : usa
 PanelMunicipal ..> REST_ResumenZona : usa
 PanelMunicipal ..> REST_Ciudadanos : usa
+PanelMunicipal ..> REST_Cuadrillas : usa
 
 REST_Reclamos ..> Svc_Reclamos : delega
+REST_Reclamos ..> Svc_Cuadrillas : delega asignar-cuadrilla
+REST_Cuadrillas ..> Svc_Cuadrillas : delega
 REST_ResumenZona ..> Svc_IA : delega
 REST_Ciudadanos ..> Svc_Ciudadanos : delega
 SOAP_Reclamos ..> Svc_Reclamos : delega

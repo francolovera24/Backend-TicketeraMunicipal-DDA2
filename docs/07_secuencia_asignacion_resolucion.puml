@@ -33,6 +33,28 @@ else no hay cuadrillas libres
     note right of Cuadrillas : el reclamo queda NUEVO,\npendiente de asignacion
 end
 
+== Asignacion manual (alternativa, desde el Panel) ==
+
+Operador -> Panel : asignarCuadrilla(idReclamo, idCuadrilla)
+Panel -> REST : GET /cuadrillas?especialidad=X&disponible=true
+REST --> Panel : cuadrillas libres
+Panel -> REST : PUT /reclamos/{id}/asignar-cuadrilla (cuadrillaId)
+REST -> Cuadrillas : asignarCuadrilla(id, cuadrillaId)
+Cuadrillas -> RepoCuad : buscarConBloqueo(cuadrillaId)
+
+alt reclamo o cuadrilla inexistente
+    Cuadrillas --> Errores : RecursoNoEncontradoException
+    Errores --> Panel : 404 Not Found
+else cuadrilla ocupada, de otra especialidad,\no reclamo que no espera asignacion
+    Cuadrillas --> Errores : ConflictoException / TransicionInvalidaException
+    Errores --> Panel : 409 Conflict
+else asignacion valida
+    Cuadrillas -> Cuadrillas : reclamo.asignarCuadrilla(cuadrilla)\ncuadrilla.marcarOcupada()
+    Cuadrillas -> Broker : publicar(ReclamoAsignado)
+    Cuadrillas --> REST : reclamo ASIGNADO
+    REST --> Panel : 200 OK
+end
+
 == Trabajo en curso ==
 
 Operador -> Panel : marcar en proceso
