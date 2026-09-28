@@ -20,6 +20,7 @@ public record ReclamoResponse(
         String barrio,
         UUID ciudadanoId,
         UUID cuadrillaId,
+        UUID reclamoOriginalId,
         Instant fechaCreacion,
         Instant fechaActualizacion) {
 
@@ -40,6 +41,7 @@ public record ReclamoResponse(
                 r.getBarrio().getNombre(),
                 r.getCiudadano().getId(),
                 r.getCuadrilla() != null ? r.getCuadrilla().getId() : null,
+                r.getReclamoOriginal() != null ? r.getReclamoOriginal().getId() : null,
                 r.getFechaCreacion(),
                 r.getFechaActualizacion());
     }

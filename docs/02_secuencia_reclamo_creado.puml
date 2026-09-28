@@ -7,8 +7,10 @@ participant "ReclamoFactory" as Factory
 participant "Repo_Reclamo" as Repo
 participant "Broker\n<<Sujeto>>" as Broker
 participant "Consumidor_Eventos\n<<RabbitListener>>" as Consumidor
-participant "Svc_Cuadrillas\n<<Observer>>" as Cuadrillas
 participant "Svc_IA\n<<Observer>>" as IA
+participant "DetectorDeDuplicados" as Detector
+participant "API_LLM" as LLM
+participant "Svc_Cuadrillas\n<<Observer>>" as Cuadrillas
 
 Vecino -> WebApp : crearReclamo(descripcion, ubicacion)
 WebApp -> REST : altaReclamo(dto)
@@ -22,12 +24,41 @@ Svc -> Repo : guardar(reclamo)
 Repo --> Svc : ok
 
 Svc -> Broker : publicar(ReclamoCreado)
-Broker -> Consumidor : entrega via cola
-Consumidor -> Cuadrillas : actualizar(ReclamoCreado)
-Consumidor -> IA : actualizar(ReclamoCreado)
-note right of IA : invalida la cache\nde esa zona
-
-Svc --> REST : reclamo creado
+Svc --> REST : reclamo creado (NUEVO)
 REST --> WebApp : 201 Created
 WebApp --> Vecino : confirmacion
+
+== Validacion asincronica (cola ia.eventos) ==
+
+Broker -> Consumidor : entrega via cola
+Consumidor -> IA : actualizar(ReclamoCreado)
+note right of IA : invalida la cache\nde esa zona
+IA -> Detector : buscarOriginal(reclamo)
+Detector -> Repo : buscarCandidatosDuplicado(tipo, desde)
+Repo --> Detector : candidatos
+Detector -> Detector : filtrar por distancia / barrio
+
+alt hay candidatos
+    Detector -> LLM : generarTexto(nuevo, candidatos)
+    alt LLM responde
+        LLM --> Detector : numero del duplicado o 0
+    else LLM falla
+        note right of Detector : se considera\nno duplicado
+    end
+end
+Detector --> IA : original o ninguno
+
+alt es duplicado
+    IA -> Repo : marcarDuplicadoDe(original)
+    note right of IA : estado DUPLICADO,\nno se asigna cuadrilla
+else no es duplicado
+    IA -> Repo : guardar score inicial
+    IA -> Broker : publicar(ReclamoValidado)
+
+    == Asignacion (cola cuadrillas.eventos) ==
+
+    Broker -> Consumidor : entrega via cola
+    Consumidor -> Cuadrillas : actualizar(ReclamoValidado)
+    Cuadrillas -> Cuadrillas : asignar(reclamo)
+end
 @enduml

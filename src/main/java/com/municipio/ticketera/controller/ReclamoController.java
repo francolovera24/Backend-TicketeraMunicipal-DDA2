@@ -40,7 +40,9 @@ public class ReclamoController {
     }
 
     @PostMapping
-    @Operation(summary = "Registrar un reclamo", description = "Publica el evento reclamo.creado.")
+    @Operation(summary = "Registrar un reclamo",
+            description = "Publica reclamo.creado. SvcIA lo valida en segundo plano: si repite un problema "
+                    + "ya reportado queda DUPLICADO (con reclamoOriginalId); si no, se le asigna cuadrilla.")
     @ApiResponse(responseCode = "201", description = "Reclamo creado")
     @ApiResponse(responseCode = "400", description = "Datos invalidos")
     @ApiResponse(responseCode = "404", description = "Ciudadano inexistente")

@@ -64,6 +64,11 @@ ticketera:
       api-key: ${LLM_API_KEY:}
       timeout-conexion: 3s
       timeout-lectura: 20s
+  duplicados:
+    habilitado: ${DUPLICADOS_HABILITADO:true}
+    radio-metros: 150
+    ventana: 30d
+    max-candidatos: 5
   geo:
     habilitado: ${GEO_HABILITADO:true}
     url: ${GEO_URL:https://nominatim.openstreetmap.org}

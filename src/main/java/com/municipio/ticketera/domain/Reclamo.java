@@ -55,6 +55,11 @@ public class Reclamo {
     @JoinColumn(name = "cuadrilla_id")
     private Cuadrilla cuadrilla;
 
+    /** Si es DUPLICADO, el reclamo que ya reportaba el mismo problema. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reclamo_original_id")
+    private Reclamo reclamoOriginal;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Estado estado;
@@ -91,7 +96,24 @@ public class Reclamo {
         this.fechaActualizacion = this.fechaCreacion;
     }
 
+    /** DUPLICADO no se asigna a mano: requiere el original (ver marcarDuplicadoDe). */
     public void cambiarEstado(Estado nuevoEstado) {
+        if (nuevoEstado == Estado.DUPLICADO) {
+            throw new TransicionInvalidaException(estado, nuevoEstado);
+        }
+        pasarA(nuevoEstado);
+    }
+
+    /** Marca este reclamo como duplicado de otro activo del mismo tipo. */
+    public void marcarDuplicadoDe(Reclamo original) {
+        if (original == null || original == this || original.tipo != tipo) {
+            throw new IllegalArgumentException("El original debe ser otro reclamo del mismo tipo");
+        }
+        pasarA(Estado.DUPLICADO);
+        this.reclamoOriginal = original;
+    }
+
+    private void pasarA(Estado nuevoEstado) {
         if (!estado.puedePasarA(nuevoEstado)) {
             throw new TransicionInvalidaException(estado, nuevoEstado);
         }
@@ -144,6 +166,10 @@ public class Reclamo {
 
     public Cuadrilla getCuadrilla() {
         return cuadrilla;
+    }
+
+    public Reclamo getReclamoOriginal() {
+        return reclamoOriginal;
     }
 
     public Estado getEstado() {

@@ -6,6 +6,8 @@ package com.municipio.ticketera.patterns.observer;
 public enum TipoEvento {
 
     RECLAMO_CREADO("reclamo.creado"),
+    /** SvcIA confirmo que no es duplicado: recien ahora se le asigna cuadrilla. */
+    RECLAMO_VALIDADO("reclamo.validado"),
     RECLAMO_ASIGNADO("reclamo.asignado"),
     RECLAMO_RESUELTO("reclamo.resuelto"),
     ZONA_RESUMEN("zona.resumen");

@@ -22,7 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Observer de la cola cuadrillas.eventos.
  * <ul>
- *   <li>reclamo.creado: asigna una cuadrilla libre de la especialidad.</li>
+ *   <li>reclamo.validado (SvcIA confirmo que no es duplicado): asigna una
+ *   cuadrilla libre de la especialidad.</li>
  *   <li>reclamo.resuelto: libera la cuadrilla y le da el reclamo pendiente mas antiguo.</li>
  * </ul>
  * Si no hay cuadrilla libre, el reclamo queda pendiente hasta que se libere una.
@@ -57,7 +58,7 @@ public class SvcCuadrillas implements Observador {
             return;
         }
         switch (evento.tipo()) {
-            case RECLAMO_CREADO -> asignar(reclamo.get());
+            case RECLAMO_VALIDADO -> asignar(reclamo.get());
             case RECLAMO_RESUELTO -> liberarCuadrilla(reclamo.get());
             default -> log.debug("SvcCuadrillas ignora {}", evento.tipo());
         }

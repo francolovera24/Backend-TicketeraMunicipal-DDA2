@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +30,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Componente de IA. Es el contexto del Strategy (elige la estrategia de score
- * por tipo) y Observer de ia.eventos (invalida la cache de la zona afectada).
+ * por tipo) y Observer de ia.eventos: invalida la cache de la zona afectada y
+ * valida cada reclamo nuevo (deteccion de duplicados) antes de que se asigne.
  */
 @Service
 public class SvcIA implements Observador {
@@ -46,6 +48,7 @@ public class SvcIA implements Observador {
     private final SvcZonas svcZonas;
     private final CacheResumenes cache;
     private final GeneradorDeResumen generador;
+    private final DetectorDeDuplicados detector;
     private final Broker broker;
     private final TransactionTemplate tx;
 
@@ -55,8 +58,10 @@ public class SvcIA implements Observador {
                  SvcZonas svcZonas,
                  CacheResumenes cache,
                  GeneradorDeResumen generador,
+                 DetectorDeDuplicados detector,
                  Broker broker,
                  TransactionTemplate tx) {
+        this.detector = detector;
         this.estrategias = List.copyOf(estrategias);
         this.repoReclamo = repoReclamo;
         this.svcZonas = svcZonas;
@@ -119,9 +124,8 @@ public class SvcIA implements Observador {
     }
 
     /**
-     * Invalida la cache de la zona del evento. Ante reclamo.creado ademas calcula
-     * y guarda el score inicial del reclamo, para que no quede en 0 hasta el
-     * primer resumen.
+     * Invalida la cache de la zona del evento. Ante reclamo.creado ademas valida
+     * el reclamo (ver {@link #validarReclamo}).
      */
     @Override
     @Transactional
@@ -131,8 +135,29 @@ public class SvcIA implements Observador {
             log.info("Cache de resumen invalidada para {} por {}", evento.barrio(), evento.tipo());
         }
         if (evento.tipo() == TipoEvento.RECLAMO_CREADO && evento.reclamoId() != null) {
-            repoReclamo.findById(evento.reclamoId()).ifPresent(this::calcularYGuardarScore);
+            repoReclamo.findById(evento.reclamoId()).ifPresent(this::validarReclamo);
         }
+    }
+
+    /**
+     * Si el reclamo repite un problema ya reportado lo marca DUPLICADO del
+     * original; si no, calcula su score inicial y publica reclamo.validado para
+     * que SvcCuadrillas le asigne cuadrilla.
+     */
+    @Transactional
+    public void validarReclamo(Reclamo reclamo) {
+        if (reclamo.getEstado() != Estado.NUEVO) {
+            log.info("Reclamo {} ya no esta NUEVO ({}); no se valida", reclamo.getId(), reclamo.getEstado());
+            return;
+        }
+        Optional<Reclamo> original = detector.buscarOriginal(reclamo);
+        if (original.isPresent()) {
+            reclamo.marcarDuplicadoDe(original.get());
+            log.info("Reclamo {} marcado DUPLICADO de {}", reclamo.getId(), original.get().getId());
+            return;
+        }
+        calcularYGuardarScore(reclamo);
+        broker.publicar(Evento.de(TipoEvento.RECLAMO_VALIDADO, reclamo.getId(), reclamo.getBarrio().getNombre()));
     }
 
     private void calcularYGuardarScore(Reclamo reclamo) {

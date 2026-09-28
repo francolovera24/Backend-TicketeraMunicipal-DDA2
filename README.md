@@ -70,7 +70,8 @@ curl -X PUT http://localhost:8080/reclamos/<id-del-reclamo>/estado \
 ```
 Transiciones permitidas: `NUEVO -> EN_ANALISIS | ASIGNADO | RECHAZADO`,
 `EN_ANALISIS -> ASIGNADO | RECHAZADO`, `ASIGNADO -> EN_PROCESO | RESUELTO`,
-`EN_PROCESO -> RESUELTO`. Otra transicion devuelve 409.
+`EN_PROCESO -> RESUELTO`. Otra transicion devuelve 409. `DUPLICADO` solo lo
+asigna el sistema y es final.
 
 Consultar un ciudadano y su historial:
 ```bash
@@ -87,16 +88,20 @@ curl "http://localhost:8080/resumen-zona?barrio=Palermo"
 
 ```
 ticketera.eventos (topic)
-  reclamo.creado, reclamo.resuelto -> cuadrillas.eventos -> SvcCuadrillas
-  reclamo.#                        -> ia.eventos         -> SvcIA
-ticketera.eventos.dlx (fanout)     -> ticketera.eventos.dlq
+  reclamo.validado, reclamo.resuelto -> cuadrillas.eventos -> SvcCuadrillas
+  reclamo.#                          -> ia.eventos         -> SvcIA
+ticketera.eventos.dlx (fanout)       -> ticketera.eventos.dlq
 ```
 
-- `SvcCuadrillas`: al crearse un reclamo le asigna una cuadrilla libre de su
+Flujo de alta: `reclamo.creado` -> `SvcIA` valida el reclamo (duplicados) ->
+`reclamo.validado` -> `SvcCuadrillas` asigna.
+
+- `SvcIA`: invalida la cache del resumen del barrio. Ante `reclamo.creado`
+  busca si es duplicado; si no lo es, calcula su score inicial y publica
+  `reclamo.validado`.
+- `SvcCuadrillas`: con `reclamo.validado` asigna una cuadrilla libre de la
   especialidad (si no hay, queda pendiente); al resolverse, libera la cuadrilla
   y le asigna el reclamo pendiente mas antiguo de ese tipo.
-- `SvcIA`: invalida la cache del resumen del barrio y, ante `reclamo.creado`,
-  calcula el score inicial del reclamo.
 - Los eventos se publican despues del commit, persistentes y con confirmacion
   del broker. El consumidor confirma (ACK) al terminar; si falla reintenta 3
   veces con backoff y despues el mensaje va a la DLQ.
@@ -126,6 +131,21 @@ LLM_MODEL=gemini-2.5-flash
 - Timeouts de 3 s (conexion) y 20 s (lectura). Si el LLM falla o no responde,
   se devuelve el ranking con un texto de fallback (`generadoPorIa: false`), que
   se cachea solo 30 s para reintentar pronto. Un resumen generado se cachea 5 min.
+
+### Deteccion de duplicados
+
+Cuando varios vecinos reportan el mismo problema, el segundo reporte queda en
+estado `DUPLICADO` con `reclamoOriginalId` y no recibe cuadrilla:
+
+1. Reglas: reclamos activos del mismo tipo, de los ultimos 30 dias y a menos de
+   150 m (si no hay coordenadas, del mismo barrio). Casi siempre no hay
+   candidatos y no se consulta al LLM.
+2. Si hay candidatos, el LLM decide si alguno describe el mismo problema. Solo
+   recibe tipo, descripcion y distancia en metros.
+
+Si el LLM falla, el reclamo se trata como no duplicado (mejor atender dos veces
+que no atender). Con `IA_GENERADOR=stub` la comparacion es por coincidencia de
+palabras. `DUPLICADOS_HABILITADO=false` la desactiva.
 
 ## Geolocalizacion (Nominatim)
 

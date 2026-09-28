@@ -3,6 +3,7 @@ package com.municipio.ticketera.repository;
 import com.municipio.ticketera.domain.Estado;
 import com.municipio.ticketera.domain.Reclamo;
 import com.municipio.ticketera.domain.TipoDeReclamo;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +26,10 @@ public interface ReclamoRepository extends JpaRepository<Reclamo, UUID> {
     List<Reclamo> findByBarrio_IdAndEstadoIn(UUID barrioId, Collection<Estado> estados);
 
     List<Reclamo> findByCiudadano_IdOrderByFechaCreacionDesc(UUID ciudadanoId);
+
+    /** Candidatos a original de un posible duplicado: mismo tipo, activos y recientes. */
+    List<Reclamo> findByTipoAndEstadoInAndFechaCreacionAfterAndIdNot(
+            TipoDeReclamo tipo, Collection<Estado> estados, Instant desde, UUID id);
 
     long countByBarrio_IdAndTipoAndEstadoIn(UUID barrioId, TipoDeReclamo tipo, Collection<Estado> estados);
 

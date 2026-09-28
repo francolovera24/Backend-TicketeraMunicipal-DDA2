@@ -15,14 +15,26 @@ class Reclamo {
     -descripcion : String
     -tipo : TipoDeReclamo
     -ubicacion : Ubicacion
-    -estado : String
+    -estado : Estado
     -fechaCreacion : Date
     -fechaActualizacion : Date
     -scoreCriticidad : int
     -urgente : boolean
+    -reclamoOriginal : Reclamo
     +cambiarEstado(nuevoEstado) : void
     +marcarUrgente() : void
+    +marcarDuplicadoDe(original) : void
     +calcularAntiguedad() : int
+}
+
+enum Estado {
+    NUEVO
+    EN_ANALISIS
+    ASIGNADO
+    EN_PROCESO
+    RESUELTO
+    RECHAZADO
+    DUPLICADO
 }
 
 class Barrio {
@@ -109,6 +121,7 @@ class REST_Ciudadanos <<REST API>> {
     +obtenerHistorial(id) : List<Reclamo>
 }
 
+
 ' ==================== CAPA NEGOCIO ====================
 
 class Svc_Reclamos <<Facade>> {
@@ -137,9 +150,18 @@ class Svc_IA <<Strategy Context>> {
     -strategy : CriticidadStrategy
     -repoReclamo : Repo_Reclamo
     -cache : Cache_Resumenes
+    -detector : DetectorDeDuplicados
     +calcularScore(reclamo) : int
     +generarResumen(reclamos) : ResumenZona
+    +validarReclamo(reclamo) : void
     +actualizar(evento) : void
+}
+
+class DetectorDeDuplicados {
+    -repoReclamo : Repo_Reclamo
+    -radioMetros : int
+    -ventanaDias : int
+    +buscarOriginal(reclamo) : Reclamo
 }
 
 class Svc_Ciudadanos {
@@ -182,6 +204,7 @@ class Repo_Reclamo {
     +guardar(reclamo) : void
     +buscarPorId(id) : Reclamo
     +filtrar(criterios) : List<Reclamo>
+    +buscarCandidatosDuplicado(tipo, desde) : List<Reclamo>
 }
 
 class Repo_Zona {
@@ -223,7 +246,8 @@ class API_LLM <<API externa>> {
     +generarTexto(prompt) : String
 }
 
-' ==================== NOTAS DE MENSAJERIA ====================
+
+' ==================== NOTAS ====================
 
 note right of Broker
   publicar() envia el evento al exchange
@@ -237,12 +261,31 @@ note right of Consumidor_Eventos
   ACK manual, reintentos y DLQ.
 end note
 
+note bottom of DetectorDeDuplicados
+  1) Reglas: mismo tipo, activo, reciente
+     y a menos de radioMetros (o mismo barrio).
+  2) Solo si hay candidatos, el LLM decide
+     si describen el mismo problema.
+  Si el LLM falla: no es duplicado.
+end note
+
+note left of Svc_IA
+  Flujo de alta:
+  reclamo.creado -> Svc_IA.validarReclamo
+  - duplicado: estado DUPLICADO + reclamoOriginal
+  - si no: publica reclamo.validado
+  Svc_Cuadrillas asigna al recibir
+  reclamo.validado.
+end note
+
 ' ==================== RELACIONES DE DOMINIO ====================
 
 Ciudadano "1" --> "N" Reclamo : reporta
 Barrio "1" --> "N" Reclamo : agrupa
 Cuadrilla "1" --> "N" Reclamo : atiende
 Reclamo "N" --> "1" TipoDeReclamo : es de tipo
+Reclamo "N" --> "1" Estado : esta en
+Reclamo "N" --> "0..1" Reclamo : duplicado de
 ResumenDeZona "1" --> "N" Reclamo : ordena
 
 ' ==================== RELACIONES DE PATRONES ====================
@@ -274,10 +317,14 @@ Svc_Zonas --> Repo_Zona : usa
 Svc_Cuadrillas --> Repo_Cuadrilla : usa
 Svc_IA --> Repo_Reclamo : usa
 Svc_IA --> Cache_Resumenes : usa
+Svc_IA --> DetectorDeDuplicados : usa
+Svc_IA ..> Broker : publica reclamo.validado
 Svc_Ciudadanos --> Repo_Ciudadano : usa
+DetectorDeDuplicados --> Repo_Reclamo : busca candidatos
 
 Svc_Reclamos ..> API_Geo : consulta
 Svc_IA ..> API_LLM : consulta
+DetectorDeDuplicados ..> API_LLM : compara descripciones
 
 ' ==================== RELACIONES DE MENSAJERIA ====================
 
@@ -296,6 +343,7 @@ Repo_Ciudadano ..> Ciudadano : persiste
 Svc_Cuadrillas ..> Cuadrilla : gestiona
 Svc_Zonas ..> Barrio : gestiona
 Svc_IA ..> ResumenDeZona : genera
+Svc_IA ..> Reclamo : marca duplicado
 Svc_Ciudadanos ..> Ciudadano : gestiona
 WebApp ..> Ciudadano : representa a
 @enduml

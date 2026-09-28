@@ -22,9 +22,12 @@ import org.springframework.context.annotation.Configuration;
  *
  * <pre>
  * ticketera.eventos (topic)
- *   reclamo.creado, reclamo.resuelto -> cuadrillas.eventos -> SvcCuadrillas
- *   reclamo.#                        -> ia.eventos         -> SvcIA
+ *   reclamo.validado, reclamo.resuelto -> cuadrillas.eventos -> SvcCuadrillas
+ *   reclamo.#                          -> ia.eventos         -> SvcIA
  *   zona.resumen: sin binding a ia.eventos (evita un ciclo de invalidacion)
+ *
+ * Flujo de alta: reclamo.creado -> SvcIA valida (duplicados) -> reclamo.validado
+ * -> SvcCuadrillas asigna. Un duplicado no genera reclamo.validado.
  * ticketera.eventos.dlx (fanout) -> ticketera.eventos.dlq
  * </pre>
  * Colas y exchanges durables; los mensajes se publican persistentes.
@@ -68,11 +71,11 @@ public class RabbitMQConfig {
     @Bean
     public Declarables bindings(TopicExchange eventosExchange, FanoutExchange deadLetterExchange,
                                 Queue colaCuadrillas, Queue colaIa, Queue colaDeadLetter) {
-        Binding creado = BindingBuilder.bind(colaCuadrillas).to(eventosExchange).with("reclamo.creado");
+        Binding validado = BindingBuilder.bind(colaCuadrillas).to(eventosExchange).with("reclamo.validado");
         Binding resuelto = BindingBuilder.bind(colaCuadrillas).to(eventosExchange).with("reclamo.resuelto");
         Binding ia = BindingBuilder.bind(colaIa).to(eventosExchange).with("reclamo.#");
         Binding dlq = BindingBuilder.bind(colaDeadLetter).to(deadLetterExchange);
-        return new Declarables(creado, resuelto, ia, dlq);
+        return new Declarables(validado, resuelto, ia, dlq);
     }
 
     @Bean

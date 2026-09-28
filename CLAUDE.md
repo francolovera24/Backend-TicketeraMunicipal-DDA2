@@ -49,7 +49,8 @@ messaging, config, dto. La IA vive dentro de `service` (SvcIA).
 - Reclamo: id, descripcion, tipo, ubicacion (value object: direccion, lat, lon),
   barrio, ciudadano, estado, fechas, scoreCriticidad, urgente.
   Metodos: cambiarEstado, marcarUrgente, calcularAntiguedad (horas).
-- Estado: NUEVO, EN_ANALISIS, ASIGNADO, EN_PROCESO, RESUELTO, RECHAZADO.
+- Estado: NUEVO, EN_ANALISIS, ASIGNADO, EN_PROCESO, RESUELTO, RECHAZADO, DUPLICADO.
+  Reclamo tiene `reclamoOriginal` (si es DUPLICADO) y `marcarDuplicadoDe`.
 - TipoDeReclamo (enum con pesoRiesgo): CABLEADO 10, BACHEO 5, ALUMBRADO 6,
   ARBOLADO 2, RUIDOS_MOLESTOS 3. Sin metodos de negocio.
 - Ciudadano (historialReclamos, agregarReclamoAlHistorial), Barrio (catalogo,
@@ -76,13 +77,15 @@ messaging, config, dto. La IA vive dentro de `service` (SvcIA).
 ## Mensajeria (RabbitMQ) - decisiones cerradas
 - Exchange topic `ticketera.eventos`. Colas durables, mensajes persistentes.
 - `Evento`: eventId (UUID), tipo, timestamp, version, correlationId, reclamoId, barrio.
-- Routing keys: reclamo.creado, reclamo.asignado, reclamo.resuelto, zona.resumen.
+- Routing keys: reclamo.creado, reclamo.validado, reclamo.asignado, reclamo.resuelto,
+  zona.resumen.
 - `Broker.publicar` completa eventId/timestamp/correlationId y publica SOLO a
   RabbitMQ. NO debe llamar a los observadores en memoria (un esqueleto previo lo
   hacia y dejaba las colas sin consumidores: es un error conocido).
 - `ConsumidorEventos` con @RabbitListener por cola, entrega al Observador:
-  - cuadrillas.eventos: bindings reclamo.creado y reclamo.resuelto -> SvcCuadrillas
-  - ia.eventos: binding reclamo.# -> SvcIA (invalida la cache de esa zona)
+  - cuadrillas.eventos: bindings reclamo.validado y reclamo.resuelto -> SvcCuadrillas
+  - ia.eventos: binding reclamo.# -> SvcIA (invalida la cache de esa zona y, ante
+    reclamo.creado, valida el reclamo: deteccion de duplicados)
   - `zona.resumen` NO se bindea a ia.eventos (evita un ciclo de invalidacion).
 - Confiabilidad: ACK tras procesar, reintentos limitados (3, con backoff), luego
   Dead Letter Exchange -> cola `ticketera.eventos.dlq`.
@@ -101,6 +104,13 @@ en cache -> publicar `zona.resumen`.
 - Resiliencia: timeout y fallback (si el LLM falla, devolver solo el ranking).
 - Privacidad: al LLM solo tipo, barrio y descripcion; nunca nombre ni contacto.
 - Cache en memoria; Redis queda como mejora.
+- Deteccion de duplicados (decidido): ante reclamo.creado, `DetectorDeDuplicados`
+  busca candidatos por reglas (mismo tipo, activo, ultimos 30 dias, a menos de
+  150 m o mismo barrio si no hay coordenadas) y, solo si hay, el
+  `ComparadorDeReclamos` (LLM o stub) decide. Duplicado -> estado DUPLICADO +
+  `reclamoOriginal`, sin cuadrilla. Si no -> score inicial + reclamo.validado, y
+  recien ahi SvcCuadrillas asigna. Si el LLM falla, no es duplicado. Al LLM solo
+  tipo, descripcion y distancia en metros.
 - API externa real: `GeoClient` con Nominatim (direccion -> barrio). Respetar su
   politica de uso: User-Agent propio y maximo 1 pedido por segundo.
 
