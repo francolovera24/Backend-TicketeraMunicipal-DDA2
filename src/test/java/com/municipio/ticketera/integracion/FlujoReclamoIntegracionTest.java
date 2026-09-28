@@ -6,6 +6,9 @@ import static org.awaitility.Awaitility.await;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 /**
  * Flujo de punta a punta: REST -> Postgres -> RabbitMQ -> observadores.
  */
+@ExtendWith(OutputCaptureExtension.class)
 class FlujoReclamoIntegracionTest extends IntegracionBase {
 
     @Test
@@ -76,6 +80,31 @@ class FlujoReclamoIntegracionTest extends IntegracionBase {
 
         Map<String, Object> asignado = esperarReclamo((String) tercero.get("id"), enEstado("ASIGNADO"));
         assertThat(asignado.get("cuadrillaId")).isEqualTo(cuadrillaDelPrimero);
+    }
+
+    @Test
+    void reclamoAsignadoYReclamoResueltoLleganASusConsumidores(CapturedOutput salida) {
+        // ARBOLADO tiene una sola cuadrilla y otro test puede tenerla ocupada: si no se asigno sola, a mano.
+        Map<String, Object> reclamo = crearReclamo(crearCiudadano(), "ARBOLADO",
+                "Ramas tapando el semaforo", "Chacarita", null, null);
+        String id = (String) reclamo.get("id");
+        esperarReclamo(id, validado());
+        if ("NUEVO".equals(reclamo(id).get("estado"))) {
+            assertThat(cambiarEstado(id, "ASIGNADO").getStatusCode()).isEqualTo(HttpStatus.OK);
+        }
+
+        // ReclamoAsignado: publicado por SvcCuadrillas o SvcReclamos, lo consume SvcIA (ia.eventos).
+        esperarLog(salida, "evento.procesando cola=ia.eventos tipo=RECLAMO_ASIGNADO eventId=\\S+ reclamoId=" + id);
+
+        assertThat(cambiarEstado(id, "RESUELTO").getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // ReclamoResuelto: lo consumen SvcCuadrillas (libera) y SvcIA (invalida la cache).
+        esperarLog(salida, "evento.procesando cola=cuadrillas.eventos tipo=RECLAMO_RESUELTO eventId=\\S+ reclamoId=" + id);
+        esperarLog(salida, "evento.procesando cola=ia.eventos tipo=RECLAMO_RESUELTO eventId=\\S+ reclamoId=" + id);
+    }
+
+    private static void esperarLog(CapturedOutput salida, String patron) {
+        await().atMost(ESPERA).untilAsserted(() -> assertThat(salida.getOut()).containsPattern(patron));
     }
 
     @Test

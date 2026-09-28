@@ -257,13 +257,33 @@ class Svc_Ciudadanos {
 ' ==================== CAPA MENSAJERIA (Event-Driven) ====================
 
 class Evento {
-    -eventId : String
-    -tipo : String
-    -timestamp : Date
+    -eventId : UUID
+    -tipo : TipoEvento
+    -timestamp : Instant
+    -version : int
     -correlationId : String
-    -reclamoId : String
+    -reclamoId : UUID
     -barrio : String
+    +{static} de(tipo, reclamoId, barrio) : Evento
 }
+
+enum TipoEvento {
+    RECLAMO_CREADO : reclamo.creado
+    RECLAMO_VALIDADO : reclamo.validado
+    RECLAMO_ASIGNADO : reclamo.asignado
+    RECLAMO_RESUELTO : reclamo.resuelto
+    ZONA_RESUMEN : zona.resumen
+}
+
+note right of TipoEvento
+  | evento | publica | consume |
+  | ReclamoCreado | Svc_Reclamos (alta) | Svc_IA (valida) |
+  | ReclamoValidado | Svc_IA | Svc_Cuadrillas (asigna), Svc_IA |
+  | ReclamoAsignado | Svc_Cuadrillas (asignar), Svc_Reclamos (PUT estado) | Svc_IA (invalida cache) |
+  | ReclamoResuelto | Svc_Reclamos (PUT estado) | Svc_Cuadrillas (libera), Svc_IA |
+  | ZonaResumen | Svc_IA | (sin binding) |
+  Detalle de colas y bindings: 06_diagrama_flujo_mensajes.
+end note
 
 class Broker <<RabbitMQ>> {
     -exchange : String
@@ -369,8 +389,10 @@ note right of Broker
 end note
 
 note right of Consumidor_Eventos
-  Lee de su cola de RabbitMQ.
-  ACK manual, reintentos y DLQ.
+  Un @RabbitListener por cola (cuadrillas.eventos,
+  ia.eventos). ACK del contenedor al terminar sin
+  error, 3 intentos con backoff y luego DLQ.
+  Idempotencia: tabla evento_procesado.
 end note
 
 note bottom of DetectorDeDuplicados
@@ -458,6 +480,8 @@ DetectorDeDuplicados ..> ConfiguracionTicketera : lee
 ' ==================== RELACIONES DE MENSAJERIA ====================
 
 Broker ..> Evento : publica
+Evento --> TipoEvento
+Svc_Cuadrillas ..> Broker : publica reclamo.asignado
 Broker ..> Consumidor_Eventos : entrega via cola
 Consumidor_Eventos --> Observador : entrega evento
 
