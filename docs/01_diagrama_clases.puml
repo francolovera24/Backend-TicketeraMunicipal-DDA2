@@ -76,9 +76,40 @@ interface Observador {
     +actualizar(evento) : void
 }
 
-interface CriticidadStrategy {
-    +calcularScore(reclamo) : int
+interface CriticidadStrategy <<Strategy>> {
+    +calcularScore(reclamo, similaresEnZona) : int
+    +aplicaA(tipo) : boolean
 }
+
+abstract class ScorePorFormula {
+    -k : int
+    -topeHoras : int
+    -m : int
+    +calcularScore(reclamo, similaresEnZona) : int
+}
+
+class ScoreCableado {
+    k=10, tope=48 h, m=5
+    +aplicaA(tipo) : boolean
+}
+
+class ScoreBacheo {
+    k=5, tope=72 h, m=15
+    +aplicaA(tipo) : boolean
+}
+
+class ScoreGenerico {
+    k=5, tope=96 h, m=3
+    +aplicaA(tipo) : boolean
+}
+
+note bottom of ScorePorFormula
+  score = pesoRiesgo*k + min(antiguedadHoras, tope)
+          + similaresEnZona*m
+  ScoreCableado aplica a CABLEADO, ScoreBacheo a BACHEO.
+  ScoreGenerico aplica a todos y va ultima (@Order):
+  es el respaldo de ALUMBRADO, ARBOLADO y RUIDOS_MOLESTOS.
+end note
 
 abstract class ReclamoFactory <<Factory Method>> {
     +crear(descripcion, ubicacion, barrio, ciudadano) : Reclamo
@@ -197,11 +228,12 @@ class Svc_Cuadrillas <<Observer>> {
 }
 
 class Svc_IA <<Strategy Context>> {
-    -strategy : CriticidadStrategy
+    -estrategias : List<CriticidadStrategy>
     -repoReclamo : Repo_Reclamo
     -cache : Cache_Resumenes
     -detector : DetectorDeDuplicados
-    +calcularScore(reclamo) : int
+    +calcularScore(reclamo, similaresEnZona) : int
+    -estrategiaPara(tipo) : CriticidadStrategy
     +generarResumen(reclamos) : ResumenZona
     +validarReclamo(reclamo) : void
     +actualizar(evento) : void
@@ -379,7 +411,11 @@ ReclamoFactory <|-- RuidosReclamoFactory
 Sujeto <|.. Broker
 Observador <|.. Svc_Cuadrillas
 Observador <|.. Svc_IA
-CriticidadStrategy <|.. Svc_IA
+CriticidadStrategy <|.. ScorePorFormula
+ScorePorFormula <|-- ScoreCableado
+ScorePorFormula <|-- ScoreBacheo
+ScorePorFormula <|-- ScoreGenerico
+Svc_IA o--> "3" CriticidadStrategy : elige la primera que\naplicaA(reclamo.tipo)
 
 ' ==================== RELACIONES DE ARQUITECTURA ====================
 
