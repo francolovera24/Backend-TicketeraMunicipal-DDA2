@@ -1,0 +1,45 @@
+@startuml
+node "Navegador / App del vecino" as ClienteVecino {
+    artifact "WebApp (SPA)" as artWebApp
+}
+
+node "Equipo del operador municipal" as ClienteMunicipal {
+    artifact "PanelMunicipal (SPA)" as artPanel
+}
+
+node "Servidor Docker Host" as DockerHost {
+
+    node "Contenedor: app" as AppContainer {
+        artifact "ticketera-backend.jar\n(Spring Boot)" as artApp
+    }
+
+    node "Contenedor: postgres" as PgContainer {
+        database "PostgreSQL 16" as artDB
+    }
+
+    node "Contenedor: rabbitmq" as MqContainer {
+        artifact "RabbitMQ 3\n(exchange + colas)" as artMq
+    }
+
+    node "Contenedor: redis" as RedisContainer {
+        database "Redis 7" as artRedis
+    }
+}
+
+cloud "Proveedor de LLM" as NodoLLM {
+    artifact "API LLM" as artLLM
+}
+
+cloud "Proveedor de Geolocalizacion" as NodoGeo {
+    artifact "API Nominatim / OSM" as artGeo
+}
+
+ClienteVecino --> AppContainer : HTTPS 8080\n(REST JSON)
+ClienteMunicipal --> AppContainer : HTTPS 8080\n(REST JSON)
+
+AppContainer --> PgContainer : JDBC 5432
+AppContainer --> MqContainer : AMQP 5672
+AppContainer --> RedisContainer : Redis Protocol 6379
+AppContainer --> NodoLLM : HTTPS (API REST)
+AppContainer --> NodoGeo : HTTPS (API REST)
+@enduml

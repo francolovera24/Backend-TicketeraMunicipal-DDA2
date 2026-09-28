@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: ticketera-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ticketera
+      DB_USER: ticketera
+      DB_PASSWORD: ticketera
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ticketera-postgres
+    environment:
+      POSTGRES_DB: ticketera
+      POSTGRES_USER: ticketera
+      POSTGRES_PASSWORD: ticketera
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ticketera-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  # Reservado para cuando Cache_Resumenes pase de memoria a Redis (opcional).
+  redis:
+    image: redis:7-alpine
+    container_name: ticketera-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,33 @@
+@startuml
+actor Vecino
+participant WebApp
+participant "REST_Reclamos" as REST
+participant "Svc_Reclamos\n<<Facade>>" as Svc
+participant "ReclamoFactory" as Factory
+participant "Repo_Reclamo" as Repo
+participant "Broker\n<<Sujeto>>" as Broker
+participant "Consumidor_Eventos\n<<RabbitListener>>" as Consumidor
+participant "Svc_Cuadrillas\n<<Observer>>" as Cuadrillas
+participant "Svc_IA\n<<Observer>>" as IA
+
+Vecino -> WebApp : crearReclamo(descripcion, ubicacion)
+WebApp -> REST : altaReclamo(dto)
+REST -> Svc : registrarReclamo(tipo, descripcion, ubicacion)
+
+Svc -> Factory : crear(tipo, descripcion, ubicacion)
+Factory -> Factory : validar(descripcion, ubicacion)
+Factory --> Svc : reclamo
+
+Svc -> Repo : guardar(reclamo)
+Repo --> Svc : ok
+
+Svc -> Broker : publicar(ReclamoCreado)
+Broker -> Consumidor : entrega via cola
+Consumidor -> Cuadrillas : actualizar(ReclamoCreado)
+Consumidor -> IA : actualizar(ReclamoCreado)
+note right of IA : invalida la cache\nde esa zona
+
+Svc --> REST : reclamo creado
+REST --> WebApp : 201 Created
+WebApp --> Vecino : confirmacion
+@enduml

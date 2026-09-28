@@ -1,0 +1,83 @@
+@startuml
+skinparam componentStyle uml2
+skinparam defaultFontSize 11
+skinparam nodesep 12
+skinparam ranksep 20
+skinparam packagePadding 8
+
+package "Capa Presentacion" {
+    [WebApp - Portal Vecino] as WebApp
+    [PanelMunicipal] as Panel
+}
+
+package "Capa Servicios (SOA / Microservicios)" {
+    component "Servicio de Reclamos" as CompReclamos {
+        interface "IReclamosREST" as IReclamos
+        [REST_Reclamos]
+        [Svc_Reclamos <<Facade>>]
+        [ReclamoFactory]
+    }
+
+    component "Servicio de Ciudadanos" as CompCiudadanos {
+        interface "ICiudadanosREST" as ICiudadanos
+        [REST_Ciudadanos]
+        [Svc_Ciudadanos]
+    }
+
+    component "Servicio de Cuadrillas" as CompCuadrillas {
+        [Svc_Cuadrillas <<Observer>>]
+    }
+
+    component "Servicio de IA" as CompIA {
+        interface "IResumenZonaREST" as IResumen
+        [REST_ResumenZona]
+        [Svc_IA <<Strategy>>]
+    }
+}
+
+package "Capa Mensajeria" {
+    component "Broker de Eventos" as CompBroker {
+        interface "IMensajeria" as IMsg
+        [Broker <<Sujeto>>]
+    }
+}
+
+package "Capa Datos" {
+    database "PostgreSQL" as DB
+    database "Cache Redis" as Cache
+    [Repo_Reclamo]
+    [Repo_Zona]
+    [Repo_Cuadrilla]
+    [Repo_Ciudadano]
+}
+
+package "Servicios Externos" {
+    [API Geolocalizacion] as Geo
+    [API LLM] as LLM
+}
+
+WebApp --> IReclamos
+WebApp --> IResumen
+WebApp --> ICiudadanos
+Panel --> IReclamos
+Panel --> IResumen
+Panel --> ICiudadanos
+
+CompReclamos --> IMsg : publica eventos
+CompCuadrillas --> IMsg : consume eventos
+CompIA --> IMsg : consume eventos
+
+CompReclamos --> [Repo_Reclamo]
+CompCuadrillas --> [Repo_Cuadrilla]
+CompCiudadanos --> [Repo_Ciudadano]
+CompIA --> [Repo_Reclamo]
+CompIA --> Cache
+
+[Repo_Reclamo] --> DB
+[Repo_Zona] --> DB
+[Repo_Cuadrilla] --> DB
+[Repo_Ciudadano] --> DB
+
+CompReclamos --> Geo
+CompIA --> LLM
+@enduml
