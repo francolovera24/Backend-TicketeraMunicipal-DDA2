@@ -16,6 +16,7 @@ import jakarta.persistence.Version;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.OptimisticLock;
 
 /**
  * Reclamo de infraestructura urbana. Se crea solo a traves de una
@@ -61,6 +62,8 @@ public class Reclamo {
     @Column(name = "fecha_actualizacion", nullable = false)
     private Instant fechaActualizacion;
 
+    // Es un dato derivado que recalcula SvcIA: no debe chocar con cambios de estado concurrentes.
+    @OptimisticLock(excluded = true)
     @Column(name = "score_criticidad", nullable = false)
     private int scoreCriticidad;
 
