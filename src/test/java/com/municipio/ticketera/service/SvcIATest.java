@@ -34,7 +34,7 @@ class SvcIATest {
     private final ScoreGenerico generico = new ScoreGenerico();
 
     private ReclamoRepository repo;
-    private SvcZonas svcZonas;
+    private SvcBarrios svcBarrios;
     private CacheResumenes cache;
     private GeneradorDeResumen generador;
     private SvcIA svcIA;
@@ -43,12 +43,12 @@ class SvcIATest {
     @SuppressWarnings("unchecked")
     void setUp() {
         repo = mock(ReclamoRepository.class);
-        svcZonas = mock(SvcZonas.class);
+        svcBarrios = mock(SvcBarrios.class);
         cache = mock(CacheResumenes.class);
         generador = mock(GeneradorDeResumen.class);
         TransactionTemplate tx = mock(TransactionTemplate.class);
         when(tx.execute(any())).thenAnswer(inv -> ((TransactionCallback<Object>) inv.getArgument(0)).doInTransaction(null));
-        svcIA = new SvcIA(List.of(cableado, bacheo, generico), repo, svcZonas, cache, generador,
+        svcIA = new SvcIA(List.of(cableado, bacheo, generico), repo, svcBarrios, cache, generador,
                 mock(DetectorDeDuplicados.class), mock(Broker.class), tx,
                 new ConfiguracionTicketera("America/Argentina/Buenos_Aires", null, null, null));
     }
@@ -146,7 +146,7 @@ class SvcIATest {
 
     @Test
     void unEventoDelBarrioInvalidaTodasSusVariantes() {
-        when(svcZonas.normalizar("Palermo")).thenReturn("palermo");
+        when(svcBarrios.normalizar("Palermo")).thenReturn("palermo");
         svcIA.actualizar(com.municipio.ticketera.patterns.observer.Evento.de(
                 com.municipio.ticketera.patterns.observer.TipoEvento.RECLAMO_RESUELTO, java.util.UUID.randomUUID(),
                 "Palermo"));
@@ -156,7 +156,7 @@ class SvcIATest {
     @Test
     void devuelveElResumenCacheadoSinRecalcular() {
         Barrio palermo = DatosDePrueba.barrio("Palermo");
-        when(svcZonas.buscarBarrio("Palermo")).thenReturn(Optional.of(palermo));
+        when(svcBarrios.buscarBarrio("Palermo")).thenReturn(Optional.of(palermo));
         ResumenDeZona cacheado = new ResumenDeZona("Palermo", null, null, "cacheado", java.time.Instant.now(), true, List.of());
         when(cache.get("palermo|*|*")).thenReturn(Optional.of(cacheado));
 
@@ -165,9 +165,9 @@ class SvcIATest {
     }
 
     private void prepararBarrio(Barrio barrio, List<Reclamo> activos) {
-        when(svcZonas.buscarBarrio(barrio.getNombre())).thenReturn(Optional.of(barrio));
+        when(svcBarrios.buscarBarrio(barrio.getNombre())).thenReturn(Optional.of(barrio));
         when(cache.get(anyString())).thenReturn(Optional.empty());
-        when(svcZonas.obtenerReclamosDeZona(barrio)).thenReturn(activos);
+        when(svcBarrios.obtenerReclamosActivos(barrio)).thenReturn(activos);
     }
 
     private static com.municipio.ticketera.domain.Ubicacion ubicacion() {

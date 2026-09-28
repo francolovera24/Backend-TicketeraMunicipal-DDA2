@@ -3,7 +3,7 @@ package com.municipio.ticketera.patterns.strategy;
 import com.municipio.ticketera.domain.Reclamo;
 
 /**
- * Formula comun: pesoRiesgo*k + min(antiguedadHoras, tope) + similaresEnZona*m.
+ * Formula comun: pesoRiesgo*k + min(antiguedadHoras, tope) + similaresEnBarrio*m.
  * Cada estrategia concreta fija sus propios k, tope y m.
  */
 public abstract class ScorePorFormula implements CriticidadStrategy {
@@ -19,10 +19,10 @@ public abstract class ScorePorFormula implements CriticidadStrategy {
     }
 
     @Override
-    public int calcularScore(Reclamo reclamo, long similaresEnZona) {
+    public int calcularScore(Reclamo reclamo, long similaresEnBarrio) {
         long porRiesgo = (long) reclamo.getTipo().getPesoRiesgo() * k;
         long porAntiguedad = Math.min(reclamo.calcularAntiguedad(), topeHoras);
-        long porDensidad = similaresEnZona * m;
+        long porDensidad = similaresEnBarrio * m;
         return Math.toIntExact(porRiesgo + porAntiguedad + porDensidad);
     }
 }

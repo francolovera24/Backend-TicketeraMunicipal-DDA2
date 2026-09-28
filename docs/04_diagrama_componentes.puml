@@ -57,7 +57,7 @@ package "Aplicacion: ticketera-backend.jar (monolito modular, un unico despliegu
 
     package "Capa Datos" {
         [Repo_Reclamo]
-        [Repo_Zona]
+        [Repo_Barrio]
         [Repo_Cuadrilla]
         [Repo_Ciudadano]
     }
@@ -107,7 +107,7 @@ CompCiudadanos --> [Repo_Ciudadano]
 CompIA --> [Repo_Reclamo]
 
 [Repo_Reclamo] --> DB
-[Repo_Zona] --> DB
+[Repo_Barrio] --> DB
 [Repo_Cuadrilla] --> DB
 [Repo_Ciudadano] --> DB
 

@@ -9,7 +9,7 @@ import com.municipio.ticketera.domain.TipoDeReclamo;
  */
 public interface CriticidadStrategy {
 
-    int calcularScore(Reclamo reclamo, long similaresEnZona);
+    int calcularScore(Reclamo reclamo, long similaresEnBarrio);
 
     boolean aplicaA(TipoDeReclamo tipo);
 }

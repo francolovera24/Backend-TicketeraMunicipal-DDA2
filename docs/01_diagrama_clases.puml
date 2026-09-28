@@ -98,7 +98,7 @@ interface Observador {
 }
 
 interface CriticidadStrategy <<Strategy>> {
-    +calcularScore(reclamo, similaresEnZona) : int
+    +calcularScore(reclamo, similaresEnBarrio) : int
     +aplicaA(tipo) : boolean
 }
 
@@ -106,7 +106,7 @@ abstract class ScorePorFormula {
     -k : int
     -topeHoras : int
     -m : int
-    +calcularScore(reclamo, similaresEnZona) : int
+    +calcularScore(reclamo, similaresEnBarrio) : int
 }
 
 class ScoreCableado {
@@ -126,7 +126,7 @@ class ScoreGenerico {
 
 note bottom of ScorePorFormula
   score = pesoRiesgo*k + min(antiguedadHoras, tope)
-          + similaresEnZona*m
+          + similaresEnBarrio*m
   ScoreCableado aplica a CABLEADO, ScoreBacheo a BACHEO.
   ScoreGenerico aplica a todos y va ultima (@Order):
   es el respaldo de ALUMBRADO, ARBOLADO y RUIDOS_MOLESTOS.
@@ -243,10 +243,13 @@ class Svc_Reclamos <<Facade>> {
     +consultarReclamos(filtros) : List<Reclamo>
 }
 
-class Svc_Zonas {
-    -repo : Repo_Zona
-    +agruparPorZona(reclamos) : Map
-    +obtenerReclamosDeZona(barrio) : List<Reclamo>
+class Svc_Barrios {
+    -repo : Repo_Barrio
+    +normalizar(nombre) : String
+    +buscarBarrio(nombre) : Barrio
+    +resolverBarrio(nombre) : Barrio
+    +agruparPorBarrio(reclamos) : Map
+    +obtenerReclamosActivos(barrio) : List<Reclamo>
 }
 
 class Svc_Cuadrillas <<Observer>> {
@@ -271,7 +274,7 @@ class Svc_IA <<Strategy Context>> {
     -repoReclamo : Repo_Reclamo
     -cache : Cache_Resumenes
     -detector : DetectorDeDuplicados
-    +calcularScore(reclamo, similaresEnZona) : int
+    +calcularScore(reclamo, similaresEnBarrio) : int
     -estrategiaPara(tipo) : CriticidadStrategy
     +generarResumen(barrio, tipo, desde) : ResumenDeZona
     -anonimizar(reclamo) : ReclamoParaResumen
@@ -349,10 +352,10 @@ class Repo_Reclamo {
     +buscarCandidatosDuplicado(tipo, desde) : List<Reclamo>
 }
 
-class Repo_Zona {
+class Repo_Barrio {
     -dataSource : DataSource
-    +guardar(zona) : void
-    +buscarPorNombre(nombre) : Zona
+    +guardar(barrio) : void
+    +buscarPorNombreNormalizado(nombre) : Barrio
 }
 
 class Repo_Cuadrilla {
@@ -509,11 +512,11 @@ REST_Ciudadanos ..> Svc_Ciudadanos : delega
 SOAP_Reclamos ..> Svc_Reclamos : delega
 
 Svc_Reclamos --> "5" ReclamoFactory : elige por tipo
-Svc_Reclamos ..> Svc_Zonas : usa
+Svc_Reclamos ..> Svc_Barrios : usa
 Svc_Reclamos ..> Broker : publica evento
 
 Svc_Reclamos --> Repo_Reclamo : usa
-Svc_Zonas --> Repo_Zona : usa
+Svc_Barrios --> Repo_Barrio : usa
 Svc_Cuadrillas --> Repo_Cuadrilla : usa
 Svc_IA --> Repo_Reclamo : usa
 Svc_IA --> Cache_Resumenes : usa
@@ -547,11 +550,11 @@ Consumidor_Eventos --> Observador : entrega evento
 Svc_Reclamos ..> Reclamo : crea/gestiona
 ReclamoFactory ..> Reclamo : instancia
 Repo_Reclamo ..> Reclamo : persiste
-Repo_Zona ..> Barrio : persiste
+Repo_Barrio ..> Barrio : persiste
 Repo_Cuadrilla ..> Cuadrilla : persiste
 Repo_Ciudadano ..> Ciudadano : persiste
 Svc_Cuadrillas ..> Cuadrilla : gestiona
-Svc_Zonas ..> Barrio : gestiona
+Svc_Barrios ..> Barrio : gestiona
 Svc_IA ..> ResumenDeZona : genera
 Svc_IA ..> Reclamo : marca duplicado
 Svc_Ciudadanos ..> Ciudadano : gestiona

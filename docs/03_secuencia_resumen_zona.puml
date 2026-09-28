@@ -33,7 +33,7 @@ else barrio valido
         Svc -> Svc : aplicar filtros tipo y desde\n(desde = inicio del dia, hora de Buenos Aires)
 
         loop por cada reclamo
-            Svc -> Strategy : calcularScore(reclamo, similaresEnZona)
+            Svc -> Strategy : calcularScore(reclamo, similaresEnBarrio)
             Strategy --> Svc : score
         end
 

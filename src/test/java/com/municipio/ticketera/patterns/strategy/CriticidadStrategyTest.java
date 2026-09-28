@@ -12,7 +12,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
 /**
- * Formula: pesoRiesgo*k + min(antiguedadHoras, tope) + similaresEnZona*m.
+ * Formula: pesoRiesgo*k + min(antiguedadHoras, tope) + similaresEnBarrio*m.
  */
 class CriticidadStrategyTest {
 

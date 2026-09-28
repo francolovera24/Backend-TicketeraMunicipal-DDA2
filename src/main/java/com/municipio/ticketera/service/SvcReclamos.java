@@ -35,7 +35,7 @@ public class SvcReclamos {
 
     private final ReclamoRepository repo;
     private final CiudadanoRepository ciudadanoRepo;
-    private final SvcZonas svcZonas;
+    private final SvcBarrios svcBarrios;
     private final GeoClient geoClient;
     private final Broker broker;
     private final TransactionTemplate tx;
@@ -43,14 +43,14 @@ public class SvcReclamos {
 
     public SvcReclamos(ReclamoRepository repo,
                        CiudadanoRepository ciudadanoRepo,
-                       SvcZonas svcZonas,
+                       SvcBarrios svcBarrios,
                        GeoClient geoClient,
                        Broker broker,
                        TransactionTemplate tx,
                        List<ReclamoFactory> listaFabricas) {
         this.repo = repo;
         this.ciudadanoRepo = ciudadanoRepo;
-        this.svcZonas = svcZonas;
+        this.svcBarrios = svcBarrios;
         this.geoClient = geoClient;
         this.broker = broker;
         this.tx = tx;
@@ -87,7 +87,7 @@ public class SvcReclamos {
             throw new ValidacionException(
                     "No se pudo determinar el barrio a partir de la direccion; informelo en el campo barrio");
         }
-        return registrar(ciudadanoId, tipo, descripcion, ubicacionFinal, svcZonas.resolverBarrio(barrioFinal));
+        return registrar(ciudadanoId, tipo, descripcion, ubicacionFinal, svcBarrios.resolverBarrio(barrioFinal));
     }
 
     private Reclamo registrar(UUID ciudadanoId, TipoDeReclamo tipo, String descripcion,
@@ -133,7 +133,7 @@ public class SvcReclamos {
         if (nombreBarrio == null || nombreBarrio.isBlank()) {
             return repo.findAllByOrderByFechaCreacionDesc();
         }
-        return svcZonas.buscarBarrio(nombreBarrio)
+        return svcBarrios.buscarBarrio(nombreBarrio)
                 .map(b -> repo.findByBarrio_IdOrderByFechaCreacionDesc(b.getId()))
                 .orElse(List.of());
     }

@@ -65,13 +65,19 @@ Componente de utilidad (`util`, reutilizable e independiente de las capas):
 - `ConfiguracionTicketera`: @ConfigurationProperties("ticketera") con las
   secciones ia, geo y duplicados. Nada de @Value sueltos.
 
+## Nombres: Barrio y Zona
+Barrio es el unico nombre para la entidad, el repositorio, el servicio
+(`SvcBarrios`), metodos y parametros (`similaresEnBarrio`). "Zona" queda solo en
+nombres del contrato publico que no se cambian: `ResumenDeZona`,
+`GET /resumen-zona` y la routing key `zona.resumen`.
+
 ## Mapeo diagrama -> Java
 | Diagrama | Java |
 |---|---|
 | REST_Reclamos / REST_Ciudadanos / REST_ResumenZona | ReclamoController / CiudadanoController / ResumenZonaController |
 | Svc_Reclamos (Facade) | SvcReclamos |
-| Svc_Zonas / Svc_Cuadrillas / Svc_IA / Svc_Ciudadanos | SvcZonas / SvcCuadrillas / SvcIA / SvcCiudadanos |
-| Repo_Reclamo / Repo_Zona / Repo_Cuadrilla / Repo_Ciudadano | ReclamoRepository / BarrioRepository / CuadrillaRepository / CiudadanoRepository |
+| Svc_Barrios / Svc_Cuadrillas / Svc_IA / Svc_Ciudadanos | SvcBarrios / SvcCuadrillas / SvcIA / SvcCiudadanos |
+| Repo_Reclamo / Repo_Barrio / Repo_Cuadrilla / Repo_Ciudadano | ReclamoRepository / BarrioRepository / CuadrillaRepository / CiudadanoRepository |
 | Broker, Consumidor_Eventos, Evento | Broker, ConsumidorEventos, Evento |
 | Cache_Resumenes | CacheResumenes |
 | API_Geo / API_LLM | GeoClient / LlmClient (implementa GeneradorDeResumen) |
@@ -104,7 +110,7 @@ Componente de utilidad (`util`, reutilizable e independiente de las capas):
   urgente. `SvcReclamos` NUNCA hace `new Reclamo`.
 - Facade: `SvcReclamos` orquesta factory + repositorio + broker.
 - Strategy: `CriticidadStrategy` + una por tipo (Cableado, Bacheo) + `ScoreGenerico`
-  de respaldo. Formula: pesoRiesgo*k + min(antiguedadHoras, tope) + similaresEnZona*m.
+  de respaldo. Formula: pesoRiesgo*k + min(antiguedadHoras, tope) + similaresEnBarrio*m.
   Cableado k=10 tope=48 m=5; Bacheo k=5 tope=72 m=15; Generico k=5 tope=96 m=3.
 - Observer: `Sujeto` (implementa Broker) y `Observador` (SvcCuadrillas, SvcIA).
 - Repository: interfaces Spring Data JPA.

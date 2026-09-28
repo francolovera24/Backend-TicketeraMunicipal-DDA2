@@ -17,17 +17,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Catalogo de barrios y consultas por zona.
+ * Svc_Barrios: catalogo de barrios y consultas de reclamos por barrio.
  */
 @Service
-public class SvcZonas {
+public class SvcBarrios {
 
-    private static final Bitacora log = Bitacora.de(SvcZonas.class);
+    private static final Bitacora log = Bitacora.de(SvcBarrios.class);
 
     private final BarrioRepository repo;
     private final ReclamoRepository reclamoRepo;
 
-    public SvcZonas(BarrioRepository repo, ReclamoRepository reclamoRepo) {
+    public SvcBarrios(BarrioRepository repo, ReclamoRepository reclamoRepo) {
         this.repo = repo;
         this.reclamoRepo = reclamoRepo;
     }
@@ -64,13 +64,13 @@ public class SvcZonas {
         });
     }
 
-    public Map<String, List<Reclamo>> agruparPorZona(List<Reclamo> reclamos) {
+    public Map<String, List<Reclamo>> agruparPorBarrio(List<Reclamo> reclamos) {
         return reclamos.stream().collect(Collectors.groupingBy(r -> r.getBarrio().getNombre()));
     }
 
     /** Reclamos activos del barrio. */
     @Transactional(readOnly = true)
-    public List<Reclamo> obtenerReclamosDeZona(Barrio barrio) {
+    public List<Reclamo> obtenerReclamosActivos(Barrio barrio) {
         return reclamoRepo.findByBarrio_IdAndEstadoIn(barrio.getId(), Estado.ACTIVOS);
     }
 }

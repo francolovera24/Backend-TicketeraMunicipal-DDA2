@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
- * Repo_Zona del diagrama.
+ * Repo_Barrio del diagrama.
  */
 public interface BarrioRepository extends JpaRepository<Barrio, UUID> {
 
