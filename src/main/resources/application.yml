@@ -22,6 +22,16 @@ spring:
   flyway:
     locations: classpath:db/migration
 
+  web:
+    # Mensajes de Bean Validation en espanol, sin depender de Accept-Language.
+    locale: es_AR
+    locale-resolver: fixed
+
+  jackson:
+    mapper:
+      # Acepta "cableado" o "CABLEADO" en tipo y estado.
+      accept-case-insensitive-enums: true
+
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -33,5 +43,7 @@ springdoc:
     path: /swagger-ui.html
 
 logging:
+  pattern:
+    level: "%5p [%X{correlationId:-}]"
   level:
     com.municipio.ticketera: ${LOG_LEVEL:INFO}
