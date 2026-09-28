@@ -154,14 +154,34 @@ User-Agent propio (con `GEO_CONTACTO` si se define), como maximo 1 pedido por
 segundo y resultados cacheados. Si falla, el reclamo se registra igual siempre
 que el barrio venga informado. `GEO_HABILITADO=false` lo desactiva.
 
+## Tests
+
+```bash
+mvn test
+```
+Requiere Java 17, Maven y Docker corriendo (los de integracion usan
+Testcontainers). La primera vez descarga las imagenes de Postgres y RabbitMQ.
+El build de Docker (`docker compose up --build`) no corre los tests.
+
+- **Unitarios** (sin Spring ni Docker): fabricas, estrategias de criticidad,
+  transiciones de estado, cache con TTL, detector de duplicados, comparador
+  stub y la logica de `LlmClient` y `GeoClient` (armado de prompts y lectura de
+  respuestas, sin llamar a Internet).
+- **Integracion** (`integracion/`, con Postgres y RabbitMQ reales): alta con
+  validacion y asignacion de cuadrilla, reporte duplicado, liberacion de
+  cuadrilla y reasignacion del pendiente, resumen de zona con cache e
+  invalidacion, idempotencia de consumidores, DLQ y errores de la API. Usan el
+  stub de IA y Nominatim apagado, asi no dependen de servicios externos.
+
 ## Errores
 Formato RFC 7807 (`application/problem+json`): 400 datos invalidos, 404 recurso
 inexistente, 409 conflicto (contacto repetido, transicion invalida, modificacion
 concurrente), 500 error inesperado.
 
 ## Estado
-Etapas 1 a 6: infraestructura, dominio, patrones, servicios, API REST,
-mensajeria, IA con Gemini y geolocalizacion. Pendiente: tests.
+Etapas 1 a 7 completas: infraestructura, dominio, patrones, servicios, API
+REST, mensajeria, IA con Gemini (resumen y deteccion de duplicados),
+geolocalizacion y tests.
 
 Mejora futura: patron Outbox, para no perder un evento si RabbitMQ no esta
 disponible justo despues del commit (hoy queda registrado en el log).
