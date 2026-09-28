@@ -135,6 +135,31 @@ class FlujoReclamoIntegracionTest extends IntegracionBase {
         assertThat(lista(nuevo.get("ranking"))).hasSize(3);
     }
 
+    @Test
+    void resumenDeZonaAplicaLosFiltrosTipoYDesde() {
+        String ciudadano = crearCiudadano();
+        Map<String, Object> luz = crearReclamo(ciudadano, "ALUMBRADO",
+                "Farola rota frente al mercado", "San Telmo", null, null);
+        Map<String, Object> bache = crearReclamo(ciudadano, "BACHEO",
+                "Adoquines hundidos en la calzada", "San Telmo", null, null);
+        esperarReclamo((String) luz.get("id"), validado());
+        esperarReclamo((String) bache.get("id"), validado());
+        java.time.LocalDate hoy = java.time.LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
+
+        Map<String, Object> soloBacheo = resumen("San Telmo&tipo=BACHEO");
+        assertThat(soloBacheo.get("tipo")).isEqualTo("BACHEO");
+        assertThat(lista(soloBacheo.get("ranking"))).extracting(i -> i.get("tipo")).containsExactly("BACHEO");
+
+        assertThat(lista(resumen("San Telmo&desde=" + hoy).get("ranking"))).hasSize(2);
+        assertThat(lista(resumen("San Telmo&desde=" + hoy.plusDays(1)).get("ranking"))).isEmpty();
+        assertThat(lista(resumen("San Telmo").get("ranking")))
+                .as("sin filtros no reutiliza la entrada filtrada de la cache")
+                .hasSize(2);
+
+        assertThat(enviar(HttpMethod.GET, "/resumen-zona?barrio=San Telmo&desde=ayer", null).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
     private Map<String, Object> resumen(String barrio) {
         ResponseEntity<Map<String, Object>> respuesta = enviar(HttpMethod.GET, "/resumen-zona?barrio=" + barrio, null);
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);

@@ -61,6 +61,7 @@ spring:
         transformWsdlLocations: true
 
 ticketera:
+  zona-horaria: ${ZONA_HORARIA:America/Argentina/Buenos_Aires}
   ia:
     # stub (por defecto, sin credenciales) o llm (Gemini, requiere LLM_API_KEY)
     generador: ${IA_GENERADOR:stub}

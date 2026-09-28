@@ -19,6 +19,7 @@ import com.municipio.ticketera.patterns.strategy.ScoreBacheo;
 import com.municipio.ticketera.patterns.strategy.ScoreCableado;
 import com.municipio.ticketera.patterns.strategy.ScoreGenerico;
 import com.municipio.ticketera.repository.ReclamoRepository;
+import com.municipio.ticketera.util.ConfiguracionTicketera;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +49,8 @@ class SvcIATest {
         TransactionTemplate tx = mock(TransactionTemplate.class);
         when(tx.execute(any())).thenAnswer(inv -> ((TransactionCallback<Object>) inv.getArgument(0)).doInTransaction(null));
         svcIA = new SvcIA(List.of(cableado, bacheo, generico), repo, svcZonas, cache, generador,
-                mock(DetectorDeDuplicados.class), mock(Broker.class), tx);
+                mock(DetectorDeDuplicados.class), mock(Broker.class), tx,
+                new ConfiguracionTicketera("America/Argentina/Buenos_Aires", null, null, null));
     }
 
     @Test
@@ -76,7 +78,7 @@ class SvcIATest {
         // bacheo: 25 + 0 + 1 similar*15 = 40; alumbrado: 30 + 0 + 0 = 30
         assertThat(resumen.ranking()).extracting(ResumenDeZona.ItemRanking::score).containsExactly(40, 40, 30);
         assertThat(resumen.generadoPorIa()).isTrue();
-        verify(cache).set(eq("palermo"), any(ResumenDeZona.class));
+        verify(cache).set(eq("palermo|*|*"), any(ResumenDeZona.class));
     }
 
     @Test
@@ -90,15 +92,51 @@ class SvcIATest {
         assertThat(resumen.generadoPorIa()).isFalse();
         assertThat(resumen.textoResumen()).isEqualTo(SvcIA.TEXTO_FALLBACK);
         assertThat(resumen.ranking()).hasSize(1);
-        verify(cache).set(eq("palermo"), any(ResumenDeZona.class), eq(SvcIA.TTL_FALLBACK));
+        verify(cache).set(eq("palermo|*|*"), any(ResumenDeZona.class), eq(SvcIA.TTL_FALLBACK));
+    }
+
+    @Test
+    void filtraPorTipoYDesdePeroCuentaSimilaresSobreTodoElBarrio() {
+        Barrio palermo = DatosDePrueba.barrio("Palermo");
+        Reclamo bacheViejo = DatosDePrueba.conAntiguedad(
+                DatosDePrueba.reclamo(TipoDeReclamo.BACHEO, "Pozo viejo", ubicacion(), palermo),
+                java.time.Duration.ofDays(10));
+        Reclamo bacheNuevo = DatosDePrueba.reclamo(TipoDeReclamo.BACHEO, "Pozo nuevo", ubicacion(), palermo);
+        Reclamo luz = DatosDePrueba.reclamo(TipoDeReclamo.ALUMBRADO, "Luz", ubicacion(), palermo);
+        prepararBarrio(palermo, List.of(bacheViejo, bacheNuevo, luz));
+        when(generador.generarTexto(anyString(), anyList())).thenReturn("texto");
+        java.time.LocalDate ayer = java.time.LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"))
+                .minusDays(1);
+
+        ResumenDeZona resumen = svcIA.generarResumen("Palermo", TipoDeReclamo.BACHEO, ayer);
+
+        assertThat(resumen.tipo()).isEqualTo(TipoDeReclamo.BACHEO);
+        assertThat(resumen.desde()).isEqualTo(ayer);
+        // Solo el bache nuevo; su similar (el viejo) igual cuenta: 25 + 0 + 1*15
+        assertThat(resumen.ranking()).singleElement()
+                .satisfies(i -> {
+                    assertThat(i.descripcion()).isEqualTo("Pozo nuevo");
+                    assertThat(i.score()).isEqualTo(40);
+                });
+        verify(cache).set(eq("palermo|BACHEO|" + ayer), any(ResumenDeZona.class));
+        verify(generador).generarTexto(org.mockito.ArgumentMatchers.contains("solo reclamos de bacheo"), anyList());
+    }
+
+    @Test
+    void unEventoDelBarrioInvalidaTodasSusVariantes() {
+        when(svcZonas.normalizar("Palermo")).thenReturn("palermo");
+        svcIA.actualizar(com.municipio.ticketera.patterns.observer.Evento.de(
+                com.municipio.ticketera.patterns.observer.TipoEvento.RECLAMO_RESUELTO, java.util.UUID.randomUUID(),
+                "Palermo"));
+        verify(cache).invalidarPrefijo("palermo|");
     }
 
     @Test
     void devuelveElResumenCacheadoSinRecalcular() {
         Barrio palermo = DatosDePrueba.barrio("Palermo");
         when(svcZonas.buscarBarrio("Palermo")).thenReturn(Optional.of(palermo));
-        ResumenDeZona cacheado = new ResumenDeZona("Palermo", "cacheado", java.time.Instant.now(), true, List.of());
-        when(cache.get("palermo")).thenReturn(Optional.of(cacheado));
+        ResumenDeZona cacheado = new ResumenDeZona("Palermo", null, null, "cacheado", java.time.Instant.now(), true, List.of());
+        when(cache.get("palermo|*|*")).thenReturn(Optional.of(cacheado));
 
         assertThat(svcIA.generarResumen("Palermo")).isSameAs(cacheado);
         verify(generador, org.mockito.Mockito.never()).generarTexto(anyString(), anyList());
@@ -106,7 +144,7 @@ class SvcIATest {
 
     private void prepararBarrio(Barrio barrio, List<Reclamo> activos) {
         when(svcZonas.buscarBarrio(barrio.getNombre())).thenReturn(Optional.of(barrio));
-        when(cache.get(barrio.getNombreNormalizado())).thenReturn(Optional.empty());
+        when(cache.get(anyString())).thenReturn(Optional.empty());
         when(svcZonas.obtenerReclamosDeZona(barrio)).thenReturn(activos);
     }
 

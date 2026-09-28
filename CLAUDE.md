@@ -93,7 +93,9 @@ Componente de utilidad (`util`, reutilizable e independiente de las capas):
 - PUT /reclamos/{id}/asignar-cuadrilla (asignacion manual del Panel, delega en
   SvcCuadrillas.asignarCuadrilla), GET /cuadrillas?especialidad=&disponible=
 - POST /ciudadanos, GET /ciudadanos/{id}, GET /ciudadanos/{id}/reclamos
-- GET /resumen-zona?barrio=
+- GET /resumen-zona?barrio=&tipo=&desde= (tipo y desde opcionales; desde es una
+  fecha ISO interpretada en `ticketera.zona-horaria`; la clave de cache incluye
+  los tres filtros y un evento del barrio invalida todas sus variantes)
 - Errores con @RestControllerAdvice, logging SLF4J.
 
 ## Patrones (implementarlos tal cual)

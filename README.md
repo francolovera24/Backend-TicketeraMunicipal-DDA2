@@ -98,9 +98,11 @@ curl http://localhost:8080/ciudadanos/<id-del-ciudadano>
 curl http://localhost:8080/ciudadanos/<id-del-ciudadano>/reclamos
 ```
 
-Resumen priorizado de un barrio:
+Resumen priorizado de un barrio, con filtros opcionales por tipo y por fecha de
+creacion (desde el inicio de ese dia, hora de Buenos Aires):
 ```bash
 curl "http://localhost:8080/resumen-zona?barrio=Palermo"
+curl "http://localhost:8080/resumen-zona?barrio=Palermo&tipo=BACHEO&desde=2026-09-01"
 ```
 
 ## Servicio SOAP

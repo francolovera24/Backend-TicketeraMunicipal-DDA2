@@ -1,6 +1,7 @@
 package com.municipio.ticketera.util;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -10,7 +11,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * reciben este objeto (o una de sus secciones) en vez de usar @Value sueltos.
  */
 @ConfigurationProperties(prefix = "ticketera")
-public record ConfiguracionTicketera(Ia ia, Geo geo, Duplicados duplicados) {
+public record ConfiguracionTicketera(String zonaHoraria, Ia ia, Geo geo, Duplicados duplicados) {
+
+    /** Zona horaria del municipio, para interpretar fechas sin hora (por ejemplo el filtro "desde"). */
+    public ZoneId zona() {
+        return ZoneId.of(zonaHoraria);
+    }
 
     /**
      * @param generador "stub" (por defecto) o "llm"

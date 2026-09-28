@@ -12,22 +12,25 @@ participant "API_LLM" as LLM
 
 Panel -> REST : obtenerResumen(barrio, tipo, desde)
 
-alt falta el parametro barrio
-    REST -> Errores : MissingServletRequestParameterException
+alt falta el barrio, o tipo / desde con formato invalido
+    REST -> Errores : MissingServletRequestParameterException /\nMethodArgumentTypeMismatchException
     Errores --> Panel : 400 Bad Request
 else barrio inexistente
     REST -> Svc : generarResumen(barrio)
     Svc --> Errores : RecursoNoEncontradoException
     Errores --> Panel : 404 Not Found
 else barrio valido
-    REST -> Svc : generarResumen(barrio)
-    Svc -> Cache : get(barrio)
+    REST -> Svc : generarResumen(barrio, tipo, desde)
+    Svc -> Cache : get("barrio|tipo|desde")
+    note right of Cache : la clave incluye los tres filtros\n("*" si no se aplica)
 
     alt cache vigente (< 5 min)
         Cache --> Svc : ResumenDeZona cacheado
     else cache vencida o vacia
         Svc -> Repo : filtrar(reclamos activos del barrio)
         Repo --> Svc : List<Reclamo>
+        Svc -> Svc : contar similares por tipo\n(sobre todos los activos del barrio)
+        Svc -> Svc : aplicar filtros tipo y desde\n(desde = inicio del dia, hora de Buenos Aires)
 
         loop por cada reclamo
             Svc -> Strategy : calcularScore(reclamo, similaresEnZona)
@@ -45,7 +48,7 @@ else barrio valido
             Svc -> Svc : usar texto de fallback
         end
 
-        Svc -> Cache : set(barrio, resumen, ttl)
+        Svc -> Cache : set("barrio|tipo|desde", resumen, ttl)
     end
 
     Svc --> REST : ResumenDeZona

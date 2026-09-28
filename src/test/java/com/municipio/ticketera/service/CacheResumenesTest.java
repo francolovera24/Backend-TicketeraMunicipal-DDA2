@@ -39,7 +39,7 @@ class CacheResumenesTest {
 
     private final RelojManual reloj = new RelojManual();
     private final CacheResumenes cache = new CacheResumenes(Duration.ofMinutes(5), reloj);
-    private final ResumenDeZona resumen = new ResumenDeZona("Palermo", "texto", Instant.now(), true, List.of());
+    private final ResumenDeZona resumen = new ResumenDeZona("Palermo", null, null, "texto", Instant.now(), true, List.of());
 
     @Test
     void devuelveElValorMientrasNoVence() {
@@ -62,6 +62,19 @@ class CacheResumenesTest {
         assertThat(cache.get("palermo")).isPresent();
         reloj.avanzar(Duration.ofSeconds(1));
         assertThat(cache.get("palermo")).isEmpty();
+    }
+
+    @Test
+    void invalidarPrefijoBorraTodasLasVariantesDelBarrio() {
+        cache.set("palermo|*|*", resumen);
+        cache.set("palermo|BACHEO|*", resumen);
+        cache.set("palermo chico|*|*", resumen);
+
+        cache.invalidarPrefijo("palermo|");
+
+        assertThat(cache.get("palermo|*|*")).isEmpty();
+        assertThat(cache.get("palermo|BACHEO|*")).isEmpty();
+        assertThat(cache.get("palermo chico|*|*")).isPresent();
     }
 
     @Test

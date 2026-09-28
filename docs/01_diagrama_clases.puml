@@ -58,10 +58,14 @@ class TipoDeReclamo {
     -pesoRiesgo : int
 }
 
-class ResumenDeZona {
+class ResumenDeZona <<Value Object>> {
     -barrio : String
+    -tipo : TipoDeReclamo
+    -desde : LocalDate
     -textoResumen : String
-    -timestampGeneracion : Date
+    -timestampGeneracion : Instant
+    -generadoPorIa : boolean
+    -ranking : List<ItemRanking>
 }
 
 ' ==================== INTERFACES DE PATRONES ====================
@@ -189,7 +193,7 @@ class REST_Cuadrillas <<REST API>> {
 
 class REST_ResumenZona <<REST API>> {
     -svcIA : Svc_IA
-    +obtenerResumen(barrio, tipo, desde) : ResumenZona
+    +obtenerResumen(barrio, tipo, desde) : ResumenDeZona
 }
 
 class REST_Ciudadanos <<REST API>> {
@@ -252,7 +256,7 @@ class Svc_IA <<Strategy Context>> {
     -detector : DetectorDeDuplicados
     +calcularScore(reclamo, similaresEnZona) : int
     -estrategiaPara(tipo) : CriticidadStrategy
-    +generarResumen(reclamos) : ResumenZona
+    +generarResumen(barrio, tipo, desde) : ResumenDeZona
     +validarReclamo(reclamo) : void
     +actualizar(evento) : void
 }
@@ -347,11 +351,18 @@ class Repo_Ciudadano {
 }
 
 class Cache_Resumenes {
-    -store : Map<String, ResumenZona>
-    -ttlMinutos : int
-    +get(key) : ResumenZona
-    +set(key, valor, ttl) : void
+    -store : Map<String, ResumenDeZona>
+    -ttl : Duration
+    +get(clave) : ResumenDeZona
+    +set(clave, valor, ttl) : void
+    +invalidarPrefijo(prefijo) : void
 }
+
+note bottom of Cache_Resumenes
+  clave = "barrio|tipo|desde" ("*" si no hay filtro).
+  Un evento reclamo.* del barrio invalida el prefijo
+  "barrio|" (todas las variantes filtradas).
+end note
 
 ' ==================== COMPONENTE DE UTILIDAD (util) ====================
 

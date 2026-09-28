@@ -14,8 +14,11 @@ import com.municipio.ticketera.patterns.strategy.CriticidadStrategy;
 import com.municipio.ticketera.repository.ReclamoRepository;
 import com.municipio.ticketera.service.GeneradorDeResumen.ReclamoParaResumen;
 import com.municipio.ticketera.util.Bitacora;
+import com.municipio.ticketera.util.ConfiguracionTicketera;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +43,8 @@ public class SvcIA implements Observador {
 
     static final Duration TTL_FALLBACK = Duration.ofSeconds(30);
 
+    private static final String SEPARADOR = "|";
+
     private static final Bitacora log = Bitacora.de(SvcIA.class);
 
     private final List<CriticidadStrategy> estrategias;
@@ -50,6 +55,7 @@ public class SvcIA implements Observador {
     private final DetectorDeDuplicados detector;
     private final Broker broker;
     private final TransactionTemplate tx;
+    private final ZoneId zonaHoraria;
 
     /** Las estrategias llegan ordenadas por @Order: las especificas primero, ScoreGenerico al final. */
     public SvcIA(List<CriticidadStrategy> estrategias,
@@ -59,7 +65,9 @@ public class SvcIA implements Observador {
                  GeneradorDeResumen generador,
                  DetectorDeDuplicados detector,
                  Broker broker,
-                 TransactionTemplate tx) {
+                 TransactionTemplate tx,
+                 ConfiguracionTicketera configuracion) {
+        this.zonaHoraria = configuracion.zona();
         this.detector = detector;
         this.estrategias = List.copyOf(estrategias);
         this.repoReclamo = repoReclamo;
@@ -74,21 +82,28 @@ public class SvcIA implements Observador {
         return estrategiaPara(reclamo.getTipo()).calcularScore(reclamo, similaresEnZona);
     }
 
-    /**
-     * Cache -> reclamos activos -> score por Strategy -> orden -> texto -> cache -> zona.resumen.
-     */
     public ResumenDeZona generarResumen(String nombreBarrio) {
+        return generarResumen(nombreBarrio, null, null);
+    }
+
+    /**
+     * Cache -> reclamos activos (filtrados por tipo y desde) -> score por Strategy
+     * -> orden -> texto -> cache -> zona.resumen. Los filtros son opcionales y
+     * forman parte de la clave de cache.
+     */
+    public ResumenDeZona generarResumen(String nombreBarrio, TipoDeReclamo tipo, LocalDate desde) {
         Barrio barrio = svcZonas.buscarBarrio(nombreBarrio)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Barrio", nombreBarrio));
-        String clave = barrio.getNombreNormalizado();
+        String clave = claveCache(barrio.getNombreNormalizado(), tipo, desde);
 
         var cacheado = cache.get(clave);
         if (cacheado.isPresent()) {
-            log.debug("ia.resumen_desde_cache", "barrio", barrio.getNombre());
+            log.debug("ia.resumen_desde_cache", "clave", clave);
             return cacheado.get();
         }
 
-        List<ItemRanking> ranking = tx.execute(estado -> calcularRanking(barrio));
+        Instant desdeInstante = desde == null ? null : desde.atStartOfDay(zonaHoraria).toInstant();
+        List<ItemRanking> ranking = tx.execute(estado -> calcularRanking(barrio, tipo, desdeInstante));
         List<ReclamoParaResumen> paraLlm = ranking.stream()
                 .map(i -> new ReclamoParaResumen(i.tipo(), i.descripcion()))
                 .toList();
@@ -97,7 +112,7 @@ public class SvcIA implements Observador {
         String texto;
         boolean generadoPorIa;
         try {
-            texto = generador.generarTexto(barrio.getNombre(), paraLlm);
+            texto = generador.generarTexto(describirZona(barrio, tipo, desde), paraLlm);
             generadoPorIa = true;
         } catch (RuntimeException e) {
             log.aviso("ia.resumen_fallback", "barrio", barrio.getNombre(), "causa", e.getMessage());
@@ -105,7 +120,8 @@ public class SvcIA implements Observador {
             generadoPorIa = false;
         }
 
-        ResumenDeZona resumen = new ResumenDeZona(barrio.getNombre(), texto, Instant.now(), generadoPorIa, ranking);
+        ResumenDeZona resumen = new ResumenDeZona(barrio.getNombre(), tipo, desde, texto, Instant.now(),
+                generadoPorIa, ranking);
         if (generadoPorIa) {
             cache.set(clave, resumen);
         } else {
@@ -130,7 +146,8 @@ public class SvcIA implements Observador {
     @Transactional
     public void actualizar(Evento evento) {
         if (evento.barrio() != null) {
-            cache.invalidar(svcZonas.normalizar(evento.barrio()));
+            // Todas las variantes del barrio (con y sin filtros).
+            cache.invalidarPrefijo(svcZonas.normalizar(evento.barrio()) + SEPARADOR);
             log.info("ia.cache_invalidada", "barrio", evento.barrio(), "evento", evento.tipo());
         }
         if (evento.tipo() == TipoEvento.RECLAMO_CREADO && evento.reclamoId() != null) {
@@ -171,12 +188,35 @@ public class SvcIA implements Observador {
         log.info("reclamo.score_inicial", "reclamoId", reclamo.getId(), "score", score);
     }
 
-    private List<ItemRanking> calcularRanking(Barrio barrio) {
+    /** Clave de cache: barrio normalizado + filtros ("*" si no se aplica). */
+    static String claveCache(String barrioNormalizado, TipoDeReclamo tipo, LocalDate desde) {
+        return barrioNormalizado + SEPARADOR + (tipo == null ? "*" : tipo.name())
+                + SEPARADOR + (desde == null ? "*" : desde.toString());
+    }
+
+    private static String describirZona(Barrio barrio, TipoDeReclamo tipo, LocalDate desde) {
+        StringBuilder zona = new StringBuilder(barrio.getNombre());
+        if (tipo != null) {
+            zona.append(" (solo reclamos de ").append(tipo.name().toLowerCase().replace('_', ' ')).append(')');
+        }
+        if (desde != null) {
+            zona.append(" (creados desde el ").append(desde).append(')');
+        }
+        return zona.toString();
+    }
+
+    /**
+     * Los similares se cuentan sobre todos los activos del barrio: el score de un
+     * reclamo no cambia segun el filtro con que se lo mire.
+     */
+    private List<ItemRanking> calcularRanking(Barrio barrio, TipoDeReclamo tipo, Instant desde) {
         List<Reclamo> activos = svcZonas.obtenerReclamosDeZona(barrio);
         Map<TipoDeReclamo, Long> porTipo = activos.stream()
                 .collect(Collectors.groupingBy(Reclamo::getTipo, Collectors.counting()));
 
         return activos.stream()
+                .filter(r -> tipo == null || r.getTipo() == tipo)
+                .filter(r -> desde == null || !r.getFechaCreacion().isBefore(desde))
                 .map(r -> {
                     // Similares = otros reclamos activos del mismo tipo en la zona.
                     long similares = porTipo.get(r.getTipo()) - 1;

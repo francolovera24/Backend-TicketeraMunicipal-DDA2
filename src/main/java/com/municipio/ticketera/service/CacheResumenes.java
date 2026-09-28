@@ -57,4 +57,9 @@ public class CacheResumenes {
     public void invalidar(String clave) {
         store.remove(clave);
     }
+
+    /** Invalida todas las claves que empiezan con el prefijo (por ejemplo, un barrio con cualquier filtro). */
+    public void invalidarPrefijo(String prefijo) {
+        store.keySet().removeIf(clave -> clave.startsWith(prefijo));
+    }
 }
