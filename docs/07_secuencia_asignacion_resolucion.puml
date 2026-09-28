@@ -4,6 +4,7 @@ title Proceso de negocio: asignacion -> trabajo -> resolucion (continua 02_secue
 actor "Operador municipal" as Operador
 participant PanelMunicipal as Panel
 participant "REST_Reclamos" as REST
+participant "ManejadorDeErrores\n<<RestControllerAdvice>>" as Errores
 participant "Svc_Reclamos\n<<Facade>>" as Svc
 participant "Broker\n<<Sujeto>>" as Broker
 participant "Consumidor_Eventos\n(cuadrillas.eventos)" as ConsCuad
@@ -38,10 +39,21 @@ Operador -> Panel : marcar en proceso
 Panel -> REST : PUT /reclamos/{id}/estado (EN_PROCESO)
 REST -> Svc : cambiarEstado(id, EN_PROCESO)
 Svc -> Repo : buscarPorId(id)
-Repo --> Svc : reclamo
-Svc -> Svc : reclamo.cambiarEstado(EN_PROCESO)
-Svc --> REST : reclamo
-REST --> Panel : 200 OK
+
+alt reclamo inexistente
+    Repo --> Svc : vacio
+    Svc --> Errores : RecursoNoEncontradoException
+    Errores --> Panel : 404 Not Found
+else transicion no permitida (ej. desde NUEVO o DUPLICADO)
+    Repo --> Svc : reclamo
+    Svc --> Errores : TransicionInvalidaException
+    Errores --> Panel : 409 Conflict
+else transicion valida
+    Repo --> Svc : reclamo
+    Svc -> Svc : reclamo.cambiarEstado(EN_PROCESO)
+    Svc --> REST : reclamo
+    REST --> Panel : 200 OK
+end
 
 == Resolucion ==
 

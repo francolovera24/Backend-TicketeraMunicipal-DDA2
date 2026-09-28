@@ -1,6 +1,9 @@
 @startuml
+title Resumen priorizado de una zona (GET /resumen-zona)
+
 actor "Panel Municipal" as Panel
 participant "REST_ResumenZona" as REST
+participant "ManejadorDeErrores\n<<RestControllerAdvice>>" as Errores
 participant "Svc_IA\n<<Strategy Context>>" as Svc
 participant "Cache_Resumenes" as Cache
 participant "Repo_Reclamo" as Repo
@@ -8,35 +11,44 @@ participant "CriticidadStrategy" as Strategy
 participant "API_LLM" as LLM
 
 Panel -> REST : obtenerResumen(barrio, tipo, desde)
-REST -> Svc : generarResumen(barrio)
 
-Svc -> Cache : get(barrio)
+alt falta el parametro barrio
+    REST -> Errores : MissingServletRequestParameterException
+    Errores --> Panel : 400 Bad Request
+else barrio inexistente
+    REST -> Svc : generarResumen(barrio)
+    Svc --> Errores : RecursoNoEncontradoException
+    Errores --> Panel : 404 Not Found
+else barrio valido
+    REST -> Svc : generarResumen(barrio)
+    Svc -> Cache : get(barrio)
 
-alt cache vigente (< 5 min)
-    Cache --> Svc : ResumenDeZona cacheado
-else cache vencida o vacia
-    Svc -> Repo : filtrar(reclamos activos del barrio)
-    Repo --> Svc : List<Reclamo>
+    alt cache vigente (< 5 min)
+        Cache --> Svc : ResumenDeZona cacheado
+    else cache vencida o vacia
+        Svc -> Repo : filtrar(reclamos activos del barrio)
+        Repo --> Svc : List<Reclamo>
 
-    loop por cada reclamo
-        Svc -> Strategy : calcularScore(reclamo, densidadEnZona)
-        Strategy --> Svc : score
+        loop por cada reclamo
+            Svc -> Strategy : calcularScore(reclamo, similaresEnZona)
+            Strategy --> Svc : score
+        end
+
+        Svc -> Svc : ordenarPorScore(reclamos)
+
+        Svc -> LLM : generarTexto(barrio, reclamosOrdenados)
+
+        alt LLM responde OK
+            LLM --> Svc : textoResumen
+        else LLM falla
+            note right of Svc : Resiliencia: se muestra\nsolo el ranking calculado
+            Svc -> Svc : usar texto de fallback
+        end
+
+        Svc -> Cache : set(barrio, resumen, ttl)
     end
 
-    Svc -> Svc : ordenarPorScore(reclamos)
-
-    Svc -> LLM : generarTexto(barrio, reclamosOrdenados)
-
-    alt LLM responde OK
-        LLM --> Svc : textoResumen
-    else LLM falla
-        note right of Svc : Resiliencia: se muestra\nsolo el ranking calculado
-        Svc -> Svc : usar texto de fallback
-    end
-
-    Svc -> Cache : set(barrio, resumen, ttl)
+    Svc --> REST : ResumenDeZona
+    REST --> Panel : 200 OK, JSON (ranking + texto)
 end
-
-Svc --> REST : ResumenDeZona
-REST --> Panel : JSON (ranking + texto)
 @enduml

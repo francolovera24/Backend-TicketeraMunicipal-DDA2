@@ -1,7 +1,10 @@
 @startuml
+title Alta de un reclamo y validacion asincronica (sigue en 07_secuencia_asignacion_resolucion)
+
 actor Vecino
 participant WebApp
 participant "REST_Reclamos" as REST
+participant "ManejadorDeErrores\n<<RestControllerAdvice>>" as Errores
 participant "Svc_Reclamos\n<<Facade>>" as Svc
 participant "ReclamoFactory" as Factory
 participant "Repo_Reclamo" as Repo
@@ -14,19 +17,31 @@ participant "Svc_Cuadrillas\n<<Observer>>" as Cuadrillas
 
 Vecino -> WebApp : crearReclamo(descripcion, ubicacion)
 WebApp -> REST : altaReclamo(dto)
-REST -> Svc : registrarReclamo(tipo, descripcion, ubicacion)
 
-Svc -> Factory : crear(tipo, descripcion, ubicacion)
-Factory -> Factory : validar(descripcion, ubicacion)
-Factory --> Svc : reclamo
+alt dto invalido (Bean Validation: campos vacios, tipo inexistente)
+    REST -> Errores : MethodArgumentNotValidException
+    Errores --> WebApp : 400 Bad Request (problem+json con los campos)
+else dto valido
+    REST -> Svc : registrarReclamo(tipo, descripcion, ubicacion)
+    Svc -> Factory : crear(tipo, descripcion, ubicacion)
+    Factory -> Factory : validar(...) con Validador
 
-Svc -> Repo : guardar(reclamo)
-Repo --> Svc : ok
-
-Svc -> Broker : publicar(ReclamoCreado)
-Svc --> REST : reclamo creado (NUEVO)
-REST --> WebApp : 201 Created
-WebApp --> Vecino : confirmacion
+    alt regla de validacion incumplida (ej. coordenadas fuera de rango, sin barrio)
+        Factory --> Errores : ValidacionException
+        Errores --> WebApp : 400 Bad Request
+    else ciudadano inexistente
+        Svc --> Errores : RecursoNoEncontradoException
+        Errores --> WebApp : 404 Not Found
+    else datos correctos
+        Factory --> Svc : reclamo
+        Svc -> Repo : guardar(reclamo)
+        Repo --> Svc : ok
+        Svc -> Broker : publicar(ReclamoCreado)\n(se envia despues del commit)
+        Svc --> REST : reclamo creado (NUEVO)
+        REST --> WebApp : 201 Created
+        WebApp --> Vecino : confirmacion
+    end
+end
 
 == Validacion asincronica (cola ia.eventos) ==
 
