@@ -4,6 +4,14 @@ Backend del sistema de reclamos de infraestructura urbana (TP Desarrollo de
 Aplicaciones II, UADE). El diseno esta en `docs/` (PlantUML) y las decisiones en
 `CLAUDE.md`.
 
+## Arquitectura
+
+Monolito modular con base de datos compartida, pensado para evolucionar a
+microservicios: un solo JAR y un solo contenedor con los modulos Reclamos,
+Ciudadanos, Cuadrillas e IA, que se comunican por llamadas en proceso y por
+eventos en RabbitMQ. Detalle y motivos en `CLAUDE.md` ("Arquitectura: decision
+de despliegue"); diagramas en `docs/`.
+
 ## Requisitos
 - Docker y Docker Compose.
 - (Opcional, para desarrollo local) Java 17 y Maven 3.9.

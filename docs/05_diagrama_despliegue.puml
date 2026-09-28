@@ -1,4 +1,6 @@
 @startuml
+title Ticketera Municipal - despliegue (monolito modular)
+
 node "Navegador / App del vecino" as ClienteVecino {
     artifact "WebApp (SPA)" as artWebApp
 }
@@ -11,32 +13,38 @@ node "Sistema externo" as ClienteSoap {
     artifact "Cliente SOAP\n(integracion)" as artSoap
 }
 
-node "Servidor Docker Host" as DockerHost {
+node "Servidor Docker Host (docker-compose)" as DockerHost {
 
     node "Contenedor: app" as AppContainer {
-        artifact "ticketera-backend.jar\n(Spring Boot)" as artApp
+        artifact "ticketera-backend.jar (Spring Boot)\nmonolito modular: modulos Reclamos,\nCiudadanos, Cuadrillas, IA, SOAP y\nmensajeria en un solo proceso" as artApp
     }
 
     node "Contenedor: postgres" as PgContainer {
-        database "PostgreSQL 16" as artDB
+        database "PostgreSQL 16\n(base compartida)" as artDB
     }
 
     node "Contenedor: rabbitmq" as MqContainer {
-        artifact "RabbitMQ 3\n(exchange + colas)" as artMq
+        artifact "RabbitMQ 3\n(exchange + colas + DLQ)" as artMq
     }
 
     node "Contenedor: redis" as RedisContainer {
-        database "Redis 7" as artRedis
+        database "Redis 7\n(reservado, sin uso)" as artRedis
     }
 }
 
 cloud "Proveedor de LLM" as NodoLLM {
-    artifact "API LLM" as artLLM
+    artifact "API Gemini" as artLLM
 }
 
 cloud "Proveedor de Geolocalizacion" as NodoGeo {
     artifact "API Nominatim / OSM" as artGeo
 }
+
+note bottom of AppContainer
+  Un unico despliegue. Para evolucionar a
+  microservicios, el modulo de IA se separaria
+  en su propio contenedor consumiendo ia.eventos.
+end note
 
 ClienteVecino --> AppContainer : HTTPS 8080\n(REST JSON)
 ClienteMunicipal --> AppContainer : HTTPS 8080\n(REST JSON)
@@ -44,7 +52,7 @@ ClienteSoap --> AppContainer : HTTPS 8080\n(SOAP /ws, WSDL /ws/reclamos.wsdl)
 
 AppContainer --> PgContainer : JDBC 5432
 AppContainer --> MqContainer : AMQP 5672
-AppContainer --> RedisContainer : Redis Protocol 6379
+AppContainer ..> RedisContainer : reservado\n(la cache hoy es en memoria)
 AppContainer --> NodoLLM : HTTPS (API REST)
 AppContainer --> NodoGeo : HTTPS (API REST)
 @enduml

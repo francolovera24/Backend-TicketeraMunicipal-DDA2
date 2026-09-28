@@ -5,6 +5,8 @@ skinparam nodesep 12
 skinparam ranksep 20
 skinparam packagePadding 8
 
+title Ticketera Municipal - componentes (monolito modular)
+
 package "Capa Presentacion" {
     [WebApp - Portal Vecino] as WebApp
     [PanelMunicipal] as Panel
@@ -12,61 +14,75 @@ package "Capa Presentacion" {
 
 [Sistemas externos\n(integraciones)] as Externos
 
-package "Capa Servicios (SOA / Microservicios)" {
-    component "Servicio de Reclamos" as CompReclamos {
-        interface "IReclamosREST" as IReclamos
-        interface "IReclamosSOAP" as ISoap
-        [REST_Reclamos]
-        [SOAP_Reclamos]
-        [Svc_Reclamos <<Facade>>]
-        [ReclamoFactory]
+package "Aplicacion: ticketera-backend.jar (monolito modular, un unico despliegue)" {
+
+    package "Capa Servicios (modulos)" {
+        component "Modulo Reclamos" as CompReclamos {
+            interface "IReclamosREST" as IReclamos
+            interface "IReclamosSOAP" as ISoap
+            [REST_Reclamos]
+            [SOAP_Reclamos]
+            [Svc_Reclamos <<Facade>>]
+            [ReclamoFactory]
+        }
+
+        component "Modulo Ciudadanos" as CompCiudadanos {
+            interface "ICiudadanosREST" as ICiudadanos
+            [REST_Ciudadanos]
+            [Svc_Ciudadanos]
+        }
+
+        component "Modulo Cuadrillas" as CompCuadrillas {
+            [Svc_Cuadrillas <<Observer>>]
+        }
+
+        component "Modulo IA" as CompIA {
+            interface "IResumenZonaREST" as IResumen
+            [REST_ResumenZona]
+            [Svc_IA <<Strategy>>]
+            [DetectorDeDuplicados]
+            [Cache_Resumenes (en memoria)] as Cache
+        }
     }
 
-    component "Servicio de Ciudadanos" as CompCiudadanos {
-        interface "ICiudadanosREST" as ICiudadanos
-        [REST_Ciudadanos]
-        [Svc_Ciudadanos]
+    package "Capa Mensajeria" {
+        component "Broker de Eventos" as CompBroker {
+            interface "IMensajeria" as IMsg
+            [Broker <<Sujeto>>]
+            [ConsumidorEventos]
+        }
     }
 
-    component "Servicio de Cuadrillas" as CompCuadrillas {
-        [Svc_Cuadrillas <<Observer>>]
+    package "Capa Datos" {
+        [Repo_Reclamo]
+        [Repo_Zona]
+        [Repo_Cuadrilla]
+        [Repo_Ciudadano]
     }
 
-    component "Servicio de IA" as CompIA {
-        interface "IResumenZonaREST" as IResumen
-        [REST_ResumenZona]
-        [Svc_IA <<Strategy>>]
+    package "Componente de utilidad (util)" {
+        component "Utilidades" as CompUtil {
+            [Validador]
+            [Bitacora (logging SLF4J)]
+            [ConfiguracionTicketera]
+        }
     }
 }
 
-package "Capa Mensajeria" {
-    component "Broker de Eventos" as CompBroker {
-        interface "IMensajeria" as IMsg
-        [Broker <<Sujeto>>]
-    }
-}
-
-package "Capa Datos" {
-    database "PostgreSQL" as DB
-    database "Cache Redis" as Cache
-    [Repo_Reclamo]
-    [Repo_Zona]
-    [Repo_Cuadrilla]
-    [Repo_Ciudadano]
-}
-
-package "Componente de utilidad (util)" {
-    component "Utilidades" as CompUtil {
-        [Validador]
-        [Bitacora (logging SLF4J)]
-        [ConfiguracionTicketera]
-    }
-}
+database "PostgreSQL\n(base compartida por todos los modulos)" as DB
+queue "RabbitMQ\n(exchange ticketera.eventos)" as MQ
+database "Redis\n(reservado, sin uso)" as Redis
 
 package "Servicios Externos" {
     [API Geolocalizacion] as Geo
     [API LLM] as LLM
 }
+
+note bottom of CompIA
+  Candidato a separarse primero si el sistema
+  evoluciona a microservicios (ver CLAUDE.md,
+  "Arquitectura: decision de despliegue").
+end note
 
 WebApp --> IReclamos
 WebApp --> IResumen
@@ -77,14 +93,14 @@ Panel --> ICiudadanos
 Externos --> ISoap : SOAP (consulta de estado)
 
 CompReclamos --> IMsg : publica eventos
-CompCuadrillas --> IMsg : consume eventos
-CompIA --> IMsg : consume eventos
+CompCuadrillas --> IMsg : publica y consume eventos
+CompIA --> IMsg : publica y consume eventos
+CompBroker --> MQ : AMQP
 
 CompReclamos --> [Repo_Reclamo]
 CompCuadrillas --> [Repo_Cuadrilla]
 CompCiudadanos --> [Repo_Ciudadano]
 CompIA --> [Repo_Reclamo]
-CompIA --> Cache
 
 [Repo_Reclamo] --> DB
 [Repo_Zona] --> DB

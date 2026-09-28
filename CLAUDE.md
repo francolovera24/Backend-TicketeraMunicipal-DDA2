@@ -32,6 +32,26 @@ Operacion `consultarEstadoReclamo(id)`, delega en `SvcReclamos.buscarReclamo`.
 Endpoint `/ws`, WSDL en `/ws/reclamos.wsdl`. Es un servicio propio para
 integraciones externas: NO es un sistema legado.
 
+## Arquitectura: decision de despliegue
+**Monolito modular, con base de datos compartida, pensado para evolucionar a
+microservicios.**
+- Un solo artefacto (`ticketera-backend.jar`) en un solo contenedor (`app`).
+  Los "Servicios" de los diagramas (Reclamos, Ciudadanos, Cuadrillas, IA) son
+  modulos dentro de ese JAR, no procesos separados.
+- Una sola base PostgreSQL compartida por todos los modulos.
+- Los modulos se comunican de dos formas: llamadas en proceso (por ejemplo,
+  controlador -> servicio) y eventos por RabbitMQ entre el modulo que publica y
+  los observadores (SvcCuadrillas, SvcIA). La mensajeria es real aunque todo
+  corra en el mismo proceso: es la costura por donde se separaria un modulo.
+- Camino de evolucion (no implementado): extraer el modulo de IA a su propio
+  JAR/contenedor que consuma `ia.eventos` y exponga `/resumen-zona`, con su
+  propia base o solo lectura; los contratos de eventos (`Evento` con `version`)
+  ya estan pensados para eso. El Outbox pattern seria necesario en ese paso.
+- Motivo: el alcance del TP (un equipo, un despliegue, sin requisitos de
+  escalado independiente) no justifica el costo operativo de microservicios.
+- Todos los diagramas deben usar esta postura: nada de "microservicios" como
+  estado actual.
+
 ## Paquetes (base: com.municipio.ticketera)
 controller, service, repository, domain, patterns/{factory,strategy,observer},
 messaging, config, dto, util. La IA vive dentro de `service` (SvcIA).
@@ -139,6 +159,7 @@ Reglas: nombres del diagrama, codigo y comentarios en espanol, README con como
 correrlo y ejemplos curl. Ante una duda de diseno, preguntar antes de inventar.
 
 ## Material en el repo
-- `docs/`: diagramas PlantUML (clases, secuencia x2, componentes, despliegue).
+- `docs/`: diagramas PlantUML (clases, secuencia x2, componentes, despliegue,
+  flujo de mensajes).
 - `referencia/`: esqueleto previo, DESACTUALIZADO en mensajeria. Usar solo como
   guia para dominio, factories y strategies; el diseno de este archivo manda.

@@ -1,5 +1,7 @@
 @startuml TicketeraMunicipal
 
+title Ticketera Municipal - diagrama de clases (monolito modular, base de datos compartida)
+
 ' ==================== ENTIDADES DE DOMINIO ====================
 
 class Ciudadano {
@@ -100,7 +102,7 @@ class PanelMunicipal {
     +verResumenIA(filtros) : ResumenZona
 }
 
-' ==================== CAPA SERVICIOS (SOA / Microservicios) ====================
+' ==================== CAPA SERVICIOS (monolito modular: modulos de un unico despliegue) ====================
 
 class REST_Reclamos <<REST API>> {
     -svcReclamos : Svc_Reclamos
