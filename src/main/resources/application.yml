@@ -15,9 +15,12 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      # En la etapa 2 se define el esquema; por ahora Hibernate lo mantiene.
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      # El esquema lo maneja Flyway (db/migration); Hibernate solo lo valida.
+      ddl-auto: validate
     show-sql: false
+
+  flyway:
+    locations: classpath:db/migration
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
