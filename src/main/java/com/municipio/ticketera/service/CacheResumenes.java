@@ -1,6 +1,7 @@
 package com.municipio.ticketera.service;
 
 import com.municipio.ticketera.domain.ResumenDeZona;
+import com.municipio.ticketera.util.ConfiguracionTicketera;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -8,7 +9,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -25,8 +25,8 @@ public class CacheResumenes {
     private final Clock clock;
 
     @Autowired
-    public CacheResumenes(@Value("${ticketera.ia.cache-ttl-minutos:5}") int ttlMinutos) {
-        this(Duration.ofMinutes(ttlMinutos), Clock.systemUTC());
+    public CacheResumenes(ConfiguracionTicketera configuracion) {
+        this(configuracion.ia().cacheTtl(), Clock.systemUTC());
     }
 
     CacheResumenes(Duration ttl, Clock clock) {

@@ -1,13 +1,12 @@
 package com.municipio.ticketera.controller;
 
-import com.municipio.ticketera.domain.ReclamoInvalidoException;
 import com.municipio.ticketera.domain.TransicionInvalidaException;
 import com.municipio.ticketera.service.ConflictoException;
 import com.municipio.ticketera.service.RecursoNoEncontradoException;
+import com.municipio.ticketera.util.Bitacora;
+import com.municipio.ticketera.util.ValidacionException;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
@@ -30,16 +29,16 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice
 public class ManejadorDeErrores extends ResponseEntityExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(ManejadorDeErrores.class);
+    private static final Bitacora log = Bitacora.de(ManejadorDeErrores.class);
 
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ProblemDetail noEncontrado(RecursoNoEncontradoException e) {
         return problema(HttpStatus.NOT_FOUND, "Recurso no encontrado", e.getMessage());
     }
 
-    @ExceptionHandler(ReclamoInvalidoException.class)
-    public ProblemDetail reclamoInvalido(ReclamoInvalidoException e) {
-        return problema(HttpStatus.BAD_REQUEST, "Reclamo invalido", e.getMessage());
+    @ExceptionHandler(ValidacionException.class)
+    public ProblemDetail validacion(ValidacionException e) {
+        return problema(HttpStatus.BAD_REQUEST, "Datos invalidos", e.getMessage());
     }
 
     @ExceptionHandler(TransicionInvalidaException.class)
@@ -60,13 +59,13 @@ public class ManejadorDeErrores extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail integridad(DataIntegrityViolationException e) {
-        log.warn("Violacion de integridad: {}", e.getMostSpecificCause().getMessage());
+        log.aviso("api.violacion_integridad", "causa", e.getMostSpecificCause().getMessage());
         return problema(HttpStatus.CONFLICT, "Conflicto", "Los datos chocan con un registro existente");
     }
 
     @ExceptionHandler(Exception.class)
     public ProblemDetail inesperado(Exception e) {
-        log.error("Error no controlado", e);
+        log.error("api.error_no_controlado", e);
         return problema(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno", "Ocurrio un error inesperado");
     }
 
@@ -92,7 +91,7 @@ public class ManejadorDeErrores extends ResponseEntityExceptionHandler {
 
     private ProblemDetail problema(HttpStatus status, String titulo, String detalle) {
         if (status.is4xxClientError()) {
-            log.info("{} {}: {}", status.value(), titulo, detalle);
+            log.info("api.error_cliente", "status", status.value(), "titulo", titulo, "detalle", detalle);
         }
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(status, detalle);
         problema.setTitle(titulo);

@@ -1,12 +1,11 @@
 package com.municipio.ticketera.service;
 
+import com.municipio.ticketera.util.Bitacora;
+import com.municipio.ticketera.util.ConfiguracionTicketera;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.municipio.ticketera.config.GeoProperties;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -28,10 +27,10 @@ public class GeoClient {
     public record ResultadoGeo(double lat, double lon, String barrio) {
     }
 
-    private static final Logger log = LoggerFactory.getLogger(GeoClient.class);
+    private static final Bitacora log = Bitacora.de(GeoClient.class);
     private static final int MAX_CACHE = 500;
 
-    private final GeoProperties config;
+    private final ConfiguracionTicketera.Geo config;
     private final RestClient http;
     private final Map<String, Optional<ResultadoGeo>> cache = new LinkedHashMap<>(16, 0.75f, true) {
         @Override
@@ -41,7 +40,8 @@ public class GeoClient {
     };
     private long ultimoPedido;
 
-    public GeoClient(RestClient.Builder builder, GeoProperties config) {
+    public GeoClient(RestClient.Builder builder, ConfiguracionTicketera configuracion) {
+        ConfiguracionTicketera.Geo config = configuracion.geo();
         this.config = config;
         SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
         fabrica.setConnectTimeout(config.timeout());
@@ -73,10 +73,11 @@ public class GeoClient {
                     .body(JsonNode.class);
             Optional<ResultadoGeo> resultado = interpretar(resultados);
             cache.put(consulta, resultado);
-            log.info("Geocodificacion de '{}': {}", direccion, resultado.map(Object::toString).orElse("sin resultado"));
+            log.info("geo.geocodificado", "direccion", direccion,
+                    "resultado", resultado.map(Object::toString).orElse("sin resultado"));
             return resultado;
         } catch (RestClientException e) {
-            log.warn("Fallo la geocodificacion de '{}': {}", direccion, e.getMessage());
+            log.aviso("geo.fallo", "direccion", direccion, "causa", e.getMessage());
             return Optional.empty();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

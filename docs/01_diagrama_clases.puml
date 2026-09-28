@@ -244,6 +244,36 @@ class Cache_Resumenes {
     +set(key, valor, ttl) : void
 }
 
+' ==================== COMPONENTE DE UTILIDAD (util) ====================
+
+class Validador <<util>> {
+    +{static} requerido(valor, campo) : String
+    +{static} presente(valor, campo) : T
+    +{static} largoMaximo(valor, maximo, campo) : String
+    +{static} coordenadas(lat, lon) : void
+    +{static} uuid(valor, campo) : UUID
+}
+
+class Bitacora <<util>> {
+    -logger : Logger
+    +{static} de(clase) : Bitacora
+    +info(evento, datos) : void
+    +aviso(evento, datos) : void
+    +error(evento, causa, datos) : void
+}
+
+class ConfiguracionTicketera <<util>> {
+    -ia : Ia
+    -geo : Geo
+    -duplicados : Duplicados
+}
+
+note bottom of Bitacora
+  Wrapper de SLF4J: todos los servicios loguean
+  "evento clave=valor ...". ConfiguracionTicketera
+  concentra las variables de entorno (sin @Value sueltos).
+end note
+
 ' ==================== SERVICIOS EXTERNOS ====================
 
 class API_Geo <<API externa>> {
@@ -337,6 +367,12 @@ DetectorDeDuplicados --> Repo_Reclamo : busca candidatos
 Svc_Reclamos ..> API_Geo : consulta
 Svc_IA ..> API_LLM : consulta
 DetectorDeDuplicados ..> API_LLM : compara descripciones
+
+ReclamoFactory ..> Validador : valida con
+Svc_Ciudadanos ..> Validador : valida con
+SOAP_Reclamos ..> Validador : valida con
+Svc_IA ..> ConfiguracionTicketera : lee
+DetectorDeDuplicados ..> ConfiguracionTicketera : lee
 
 ' ==================== RELACIONES DE MENSAJERIA ====================
 

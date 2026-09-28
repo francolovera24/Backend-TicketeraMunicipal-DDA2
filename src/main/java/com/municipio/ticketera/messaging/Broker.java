@@ -4,10 +4,9 @@ import com.municipio.ticketera.config.RabbitMQConfig;
 import com.municipio.ticketera.patterns.observer.Evento;
 import com.municipio.ticketera.patterns.observer.Observador;
 import com.municipio.ticketera.patterns.observer.Sujeto;
+import com.municipio.ticketera.util.Bitacora;
 import java.time.Instant;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.MessageDeliveryMode;
@@ -30,7 +29,7 @@ public class Broker implements Sujeto {
 
     public static final String MDC_CORRELATION_ID = "correlationId";
 
-    private static final Logger log = LoggerFactory.getLogger(Broker.class);
+    private static final Bitacora log = Bitacora.de(Broker.class);
 
     private final RabbitTemplate rabbitTemplate;
     private final RabbitListenerEndpointRegistry listeners;
@@ -52,14 +51,14 @@ public class Broker implements Sujeto {
     @Override
     public void suscribir(Observador observador) {
         contenedorDe(observador).start();
-        log.info("Observador suscripto: {}", nombre(observador));
+        log.info("observador.suscripto", "observador", nombre(observador));
     }
 
     /** Desuscribir = detener el listener: los eventos quedan esperando en la cola. */
     @Override
     public void desuscribir(Observador observador) {
         contenedorDe(observador).stop();
-        log.info("Observador desuscripto: {}", nombre(observador));
+        log.info("observador.desuscripto", "observador", nombre(observador));
     }
 
     /** Notificar = publicar al exchange. */
@@ -112,12 +111,12 @@ public class Broker implements Sujeto {
                 mensaje.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
                 return mensaje;
             });
-            log.info("Evento publicado {} eventId={} reclamoId={} barrio={}",
-                    routingKey, evento.eventId(), evento.reclamoId(), evento.barrio());
+            log.info("evento.publicado", "routingKey", routingKey, "eventId", evento.eventId(),
+                    "reclamoId", evento.reclamoId(), "barrio", evento.barrio());
         } catch (AmqpException e) {
             // Sin outbox el evento se pierde: queda registrado para reprocesarlo a mano.
-            log.error("No se pudo publicar {} eventId={} reclamoId={}",
-                    routingKey, evento.eventId(), evento.reclamoId(), e);
+            log.error("evento.publicacion_fallida", e, "routingKey", routingKey, "eventId", evento.eventId(),
+                    "reclamoId", evento.reclamoId());
         }
     }
 }

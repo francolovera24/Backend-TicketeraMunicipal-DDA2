@@ -2,6 +2,7 @@ package com.municipio.ticketera.config;
 
 import com.municipio.ticketera.controller.SoapReclamos;
 import com.municipio.ticketera.service.RecursoNoEncontradoException;
+import com.municipio.ticketera.util.ValidacionException;
 import java.util.List;
 import java.util.Properties;
 import org.springframework.context.annotation.Bean;
@@ -56,6 +57,7 @@ public class WebServiceConfig extends WsConfigurerAdapter {
         SoapFaultMappingExceptionResolver resolver = new SoapFaultMappingExceptionResolver();
         Properties mapeo = new Properties();
         mapeo.setProperty(RecursoNoEncontradoException.class.getName(), SoapFaultDefinition.CLIENT.toString());
+        mapeo.setProperty(ValidacionException.class.getName(), SoapFaultDefinition.CLIENT.toString());
         resolver.setExceptionMappings(mapeo);
         SoapFaultDefinition porDefecto = new SoapFaultDefinition();
         porDefecto.setFaultCode(SoapFaultDefinition.SERVER);

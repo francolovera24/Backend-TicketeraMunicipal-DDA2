@@ -1,7 +1,8 @@
 package com.municipio.ticketera.service;
 
+import com.municipio.ticketera.util.Bitacora;
+import com.municipio.ticketera.util.ConfiguracionTicketera;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.municipio.ticketera.config.IaProperties;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
@@ -9,8 +10,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -32,7 +31,7 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
     static final int MAX_RECLAMOS = 20;
     static final int MAX_DESCRIPCION = 300;
 
-    private static final Logger log = LoggerFactory.getLogger(LlmClient.class);
+    private static final Bitacora log = Bitacora.de(LlmClient.class);
 
     private static final String INSTRUCCIONES = """
             Sos un asistente del municipio que ayuda a priorizar reclamos de infraestructura urbana.
@@ -59,8 +58,8 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
     private final RestClient http;
     private final String modelo;
 
-    public LlmClient(RestClient.Builder builder, IaProperties propiedades) {
-        IaProperties.Llm config = propiedades.llm();
+    public LlmClient(RestClient.Builder builder, ConfiguracionTicketera configuracion) {
+        ConfiguracionTicketera.Llm config = configuracion.ia().llm();
         if (config.apiKey() == null || config.apiKey().isBlank()) {
             throw new IllegalStateException("IA_GENERADOR=llm requiere definir LLM_API_KEY");
         }
@@ -73,7 +72,7 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
                 .defaultHeader("x-goog-api-key", config.apiKey())
                 .build();
         this.modelo = config.modelo();
-        log.info("Generador de resumen: LLM {}", modelo);
+        log.info("ia.generador_configurado", "tipo", "llm", "modelo", modelo);
     }
 
     @Override
@@ -83,7 +82,7 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
         }
         long inicio = System.currentTimeMillis();
         String texto = generar(INSTRUCCIONES, armarPrompt(barrio, reclamosOrdenados), 0.3, 400);
-        log.info("Resumen de {} generado por {} en {} ms", barrio, modelo, System.currentTimeMillis() - inicio);
+        log.info("ia.resumen_generado", "barrio", barrio, "modelo", modelo, "ms", System.currentTimeMillis() - inicio);
         return texto;
     }
 
@@ -96,8 +95,8 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
         // La respuesta es un numero, pero el modelo puede gastar tokens internos: se deja margen.
         String respuesta = generar(INSTRUCCIONES_DUPLICADOS, armarPromptDuplicados(nuevo, candidatos), 0.0, 256);
         OptionalInt indice = interpretarDuplicado(respuesta, candidatos.size());
-        log.info("Comparacion de duplicados por {} en {} ms: respuesta '{}'",
-                modelo, System.currentTimeMillis() - inicio, respuesta);
+        log.info("ia.duplicados_comparados", "modelo", modelo, "ms", System.currentTimeMillis() - inicio,
+                "respuesta", respuesta);
         return indice;
     }
 

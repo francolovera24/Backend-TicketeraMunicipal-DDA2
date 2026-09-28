@@ -34,7 +34,16 @@ integraciones externas: NO es un sistema legado.
 
 ## Paquetes (base: com.municipio.ticketera)
 controller, service, repository, domain, patterns/{factory,strategy,observer},
-messaging, config, dto. La IA vive dentro de `service` (SvcIA).
+messaging, config, dto, util. La IA vive dentro de `service` (SvcIA).
+
+Componente de utilidad (`util`, reutilizable e independiente de las capas):
+- `Validador` + `ValidacionException`: validaciones comunes (requerido, largo,
+  coordenadas, uuid). ReclamoFactory.validar() las usa; la API responde 400 y el
+  SOAP un Fault de cliente.
+- `Bitacora`: wrapper de SLF4J, formato unico `evento clave=valor`. Todos los
+  servicios la usan en lugar de LoggerFactory.
+- `ConfiguracionTicketera`: @ConfigurationProperties("ticketera") con las
+  secciones ia, geo y duplicados. Nada de @Value sueltos.
 
 ## Mapeo diagrama -> Java
 | Diagrama | Java |

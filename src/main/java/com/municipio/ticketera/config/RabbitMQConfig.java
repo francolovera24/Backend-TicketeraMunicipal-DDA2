@@ -1,8 +1,7 @@
 package com.municipio.ticketera.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.municipio.ticketera.util.Bitacora;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Declarables;
@@ -35,7 +34,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(RabbitMQConfig.class);
+    private static final Bitacora log = Bitacora.de(RabbitMQConfig.class);
 
     public static final String EXCHANGE = "ticketera.eventos";
     public static final String DLX = "ticketera.eventos.dlx";
@@ -88,7 +87,7 @@ public class RabbitMQConfig {
     public RabbitTemplateCustomizer confirmacionesDePublicacion() {
         return template -> template.setConfirmCallback((correlacion, ack, causa) -> {
             if (!ack) {
-                log.error("RabbitMQ rechazo una publicacion: {}", causa);
+                log.aviso("evento.publicacion_rechazada", "causa", causa);
             }
         });
     }

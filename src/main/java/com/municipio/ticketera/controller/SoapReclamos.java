@@ -7,10 +7,10 @@ import com.municipio.ticketera.dto.soap.ConsultarEstadoReclamoRequest;
 import com.municipio.ticketera.dto.soap.ConsultarEstadoReclamoResponse;
 import com.municipio.ticketera.dto.soap.EstadoReclamo;
 import com.municipio.ticketera.service.SvcReclamos;
+import com.municipio.ticketera.util.Validador;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.GregorianCalendar;
-import java.util.UUID;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 import org.springframework.ws.server.endpoint.annotation.Endpoint;
@@ -39,8 +39,8 @@ public class SoapReclamos {
     @PayloadRoot(namespace = NAMESPACE, localPart = "consultarEstadoReclamoRequest")
     @ResponsePayload
     public ConsultarEstadoReclamoResponse consultarEstadoReclamo(@RequestPayload ConsultarEstadoReclamoRequest pedido) {
-        // El formato del id ya lo valido el XSD (PayloadValidatingInterceptor).
-        Reclamo reclamo = svcReclamos.buscarReclamo(UUID.fromString(pedido.getId()));
+        // El XSD ya valida el formato (PayloadValidatingInterceptor); Validador es la segunda linea.
+        Reclamo reclamo = svcReclamos.buscarReclamo(Validador.uuid(pedido.getId(), "id"));
 
         EstadoReclamo estado = new EstadoReclamo();
         estado.setId(reclamo.getId().toString());

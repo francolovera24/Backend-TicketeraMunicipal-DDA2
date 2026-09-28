@@ -6,9 +6,8 @@ import com.municipio.ticketera.patterns.observer.Observador;
 import com.municipio.ticketera.repository.EventoProcesadoRepository;
 import com.municipio.ticketera.service.SvcCuadrillas;
 import com.municipio.ticketera.service.SvcIA;
+import com.municipio.ticketera.util.Bitacora;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.aop.framework.AopProxyUtils;
@@ -33,7 +32,7 @@ public class ConsumidorEventos {
     public static final String LISTENER_CUADRILLAS = "consumidor-cuadrillas";
     public static final String LISTENER_IA = "consumidor-ia";
 
-    private static final Logger log = LoggerFactory.getLogger(ConsumidorEventos.class);
+    private static final Bitacora log = Bitacora.de(ConsumidorEventos.class);
 
     private final SvcCuadrillas svcCuadrillas;
     private final SvcIA svcIA;
@@ -80,11 +79,11 @@ public class ConsumidorEventos {
         try {
             tx.executeWithoutResult(estado -> {
                 if (procesados.registrar(evento.eventId(), cola) == 0) {
-                    log.info("Evento duplicado descartado en {}: {} eventId={}", cola, evento.tipo(), evento.eventId());
+                    log.info("evento.duplicado_descartado", "cola", cola, "tipo", evento.tipo(), "eventId", evento.eventId());
                     return;
                 }
-                log.info("Procesando en {}: {} eventId={} reclamoId={}",
-                        cola, evento.tipo(), evento.eventId(), evento.reclamoId());
+                log.info("evento.procesando", "cola", cola, "tipo", evento.tipo(), "eventId", evento.eventId(),
+                        "reclamoId", evento.reclamoId());
                 observador.actualizar(evento);
             });
         } finally {

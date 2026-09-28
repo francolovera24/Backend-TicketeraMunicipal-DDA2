@@ -5,14 +5,13 @@ import com.municipio.ticketera.domain.Estado;
 import com.municipio.ticketera.domain.Reclamo;
 import com.municipio.ticketera.repository.BarrioRepository;
 import com.municipio.ticketera.repository.ReclamoRepository;
+import com.municipio.ticketera.util.Bitacora;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SvcZonas {
 
-    private static final Logger log = LoggerFactory.getLogger(SvcZonas.class);
+    private static final Bitacora log = Bitacora.de(SvcZonas.class);
 
     private final BarrioRepository repo;
     private final ReclamoRepository reclamoRepo;
@@ -56,7 +55,7 @@ public class SvcZonas {
         return repo.findByNombreNormalizado(clave).orElseGet(() -> {
             try {
                 Barrio nuevo = repo.saveAndFlush(new Barrio(nombre.trim(), clave));
-                log.info("Barrio agregado al catalogo: {}", nuevo.getNombre());
+                log.info("barrio.agregado", "barrio", nuevo.getNombre());
                 return nuevo;
             } catch (DataIntegrityViolationException e) {
                 // Otro pedido lo creo en paralelo.

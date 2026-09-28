@@ -48,13 +48,13 @@ class MensajeriaIntegracionTest extends IntegracionBase {
         // Llega a las dos colas: un registro por cola y el segundo envio se descarta.
         await().atMost(ESPERA).untilAsserted(() -> {
             assertThat(salida.getOut())
-                    .contains("Evento duplicado descartado en cuadrillas.eventos: RECLAMO_RESUELTO eventId=" + eventId)
-                    .contains("Evento duplicado descartado en ia.eventos: RECLAMO_RESUELTO eventId=" + eventId);
+                    .contains("evento.duplicado_descartado cola=cuadrillas.eventos tipo=RECLAMO_RESUELTO eventId=" + eventId)
+                    .contains("evento.duplicado_descartado cola=ia.eventos tipo=RECLAMO_RESUELTO eventId=" + eventId);
         });
         Integer registros = jdbc.queryForObject(
                 "select count(*) from evento_procesado where event_id = ?", Integer.class, eventId);
         assertThat(registros).isEqualTo(2);
-        assertThat(salida.getOut().split("Procesando en cuadrillas.eventos: RECLAMO_RESUELTO eventId=" + eventId))
+        assertThat(salida.getOut().split("evento.procesando cola=cuadrillas.eventos tipo=RECLAMO_RESUELTO eventId=" + eventId))
                 .as("procesado una sola vez en cuadrillas.eventos")
                 .hasSize(2);
     }

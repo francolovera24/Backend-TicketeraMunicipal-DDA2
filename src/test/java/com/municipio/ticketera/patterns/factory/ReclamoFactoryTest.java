@@ -8,7 +8,7 @@ import com.municipio.ticketera.domain.Barrio;
 import com.municipio.ticketera.domain.Ciudadano;
 import com.municipio.ticketera.domain.Estado;
 import com.municipio.ticketera.domain.Reclamo;
-import com.municipio.ticketera.domain.ReclamoInvalidoException;
+import com.municipio.ticketera.util.ValidacionException;
 import com.municipio.ticketera.domain.TipoDeReclamo;
 import com.municipio.ticketera.domain.Ubicacion;
 import java.util.stream.Stream;
@@ -49,7 +49,7 @@ class ReclamoFactoryTest {
     @Test
     void rechazaDescripcionVacia() {
         assertThatThrownBy(() -> new BacheoReclamoFactory().crear("   ", ubicacion, barrio, ciudadano))
-                .isInstanceOf(ReclamoInvalidoException.class)
+                .isInstanceOf(ValidacionException.class)
                 .hasMessageContaining("descripcion");
     }
 
@@ -57,14 +57,14 @@ class ReclamoFactoryTest {
     void rechazaDescripcionDemasiadoLarga() {
         String larga = "x".repeat(ReclamoFactory.MAX_DESCRIPCION + 1);
         assertThatThrownBy(() -> new BacheoReclamoFactory().crear(larga, ubicacion, barrio, ciudadano))
-                .isInstanceOf(ReclamoInvalidoException.class);
+                .isInstanceOf(ValidacionException.class);
     }
 
     @Test
     void rechazaSinDireccion() {
         Ubicacion sinDireccion = new Ubicacion(" ", null, null);
         assertThatThrownBy(() -> new BacheoReclamoFactory().crear("Pozo", sinDireccion, barrio, ciudadano))
-                .isInstanceOf(ReclamoInvalidoException.class)
+                .isInstanceOf(ValidacionException.class)
                 .hasMessageContaining("direccion");
     }
 
@@ -72,14 +72,14 @@ class ReclamoFactoryTest {
     void rechazaUnaSolaCoordenada() {
         Ubicacion soloLatitud = new Ubicacion("Calle 1", -34.5, null);
         assertThatThrownBy(() -> new BacheoReclamoFactory().crear("Pozo", soloLatitud, barrio, ciudadano))
-                .isInstanceOf(ReclamoInvalidoException.class);
+                .isInstanceOf(ValidacionException.class);
     }
 
     @Test
     void rechazaCoordenadasFueraDeRango() {
         Ubicacion fueraDeRango = new Ubicacion("Calle 1", -95.0, -58.0);
         assertThatThrownBy(() -> new BacheoReclamoFactory().crear("Pozo", fueraDeRango, barrio, ciudadano))
-                .isInstanceOf(ReclamoInvalidoException.class)
+                .isInstanceOf(ValidacionException.class)
                 .hasMessageContaining("rango");
     }
 
@@ -87,10 +87,10 @@ class ReclamoFactoryTest {
     void rechazaSinBarrioNiCiudadano() {
         ReclamoFactory fabrica = new BacheoReclamoFactory();
         assertThatThrownBy(() -> fabrica.crear("Pozo", ubicacion, null, ciudadano))
-                .isInstanceOf(ReclamoInvalidoException.class)
+                .isInstanceOf(ValidacionException.class)
                 .hasMessageContaining("barrio");
         assertThatThrownBy(() -> fabrica.crear("Pozo", ubicacion, barrio, null))
-                .isInstanceOf(ReclamoInvalidoException.class)
+                .isInstanceOf(ValidacionException.class)
                 .hasMessageContaining("ciudadano");
     }
 }

@@ -55,6 +55,14 @@ package "Capa Datos" {
     [Repo_Ciudadano]
 }
 
+package "Componente de utilidad (util)" {
+    component "Utilidades" as CompUtil {
+        [Validador]
+        [Bitacora (logging SLF4J)]
+        [ConfiguracionTicketera]
+    }
+}
+
 package "Servicios Externos" {
     [API Geolocalizacion] as Geo
     [API LLM] as LLM
@@ -85,4 +93,10 @@ CompIA --> Cache
 
 CompReclamos --> Geo
 CompIA --> LLM
+
+CompReclamos ..> CompUtil : usa
+CompCiudadanos ..> CompUtil : usa
+CompCuadrillas ..> CompUtil : usa
+CompIA ..> CompUtil : usa
+CompBroker ..> CompUtil : usa
 @enduml

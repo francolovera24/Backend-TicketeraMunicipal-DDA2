@@ -13,6 +13,7 @@ import com.municipio.ticketera.patterns.observer.TipoEvento;
 import com.municipio.ticketera.patterns.strategy.CriticidadStrategy;
 import com.municipio.ticketera.repository.ReclamoRepository;
 import com.municipio.ticketera.service.GeneradorDeResumen.ReclamoParaResumen;
+import com.municipio.ticketera.util.Bitacora;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
@@ -20,8 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -41,7 +40,7 @@ public class SvcIA implements Observador {
 
     static final Duration TTL_FALLBACK = Duration.ofSeconds(30);
 
-    private static final Logger log = LoggerFactory.getLogger(SvcIA.class);
+    private static final Bitacora log = Bitacora.de(SvcIA.class);
 
     private final List<CriticidadStrategy> estrategias;
     private final ReclamoRepository repoReclamo;
@@ -85,7 +84,7 @@ public class SvcIA implements Observador {
 
         var cacheado = cache.get(clave);
         if (cacheado.isPresent()) {
-            log.debug("Resumen de {} servido desde cache", barrio.getNombre());
+            log.debug("ia.resumen_desde_cache", "barrio", barrio.getNombre());
             return cacheado.get();
         }
 
@@ -101,7 +100,7 @@ public class SvcIA implements Observador {
             texto = generador.generarTexto(barrio.getNombre(), paraLlm);
             generadoPorIa = true;
         } catch (RuntimeException e) {
-            log.warn("Fallo el generador de resumen para {}: {}", barrio.getNombre(), e.getMessage());
+            log.aviso("ia.resumen_fallback", "barrio", barrio.getNombre(), "causa", e.getMessage());
             texto = TEXTO_FALLBACK;
             generadoPorIa = false;
         }
@@ -132,7 +131,7 @@ public class SvcIA implements Observador {
     public void actualizar(Evento evento) {
         if (evento.barrio() != null) {
             cache.invalidar(svcZonas.normalizar(evento.barrio()));
-            log.info("Cache de resumen invalidada para {} por {}", evento.barrio(), evento.tipo());
+            log.info("ia.cache_invalidada", "barrio", evento.barrio(), "evento", evento.tipo());
         }
         if (evento.tipo() == TipoEvento.RECLAMO_CREADO && evento.reclamoId() != null) {
             repoReclamo.findById(evento.reclamoId()).ifPresent(this::validarReclamo);
@@ -147,13 +146,13 @@ public class SvcIA implements Observador {
     @Transactional
     public void validarReclamo(Reclamo reclamo) {
         if (reclamo.getEstado() != Estado.NUEVO) {
-            log.info("Reclamo {} ya no esta NUEVO ({}); no se valida", reclamo.getId(), reclamo.getEstado());
+            log.info("reclamo.validacion_omitida", "reclamoId", reclamo.getId(), "estado", reclamo.getEstado());
             return;
         }
         Optional<Reclamo> original = detector.buscarOriginal(reclamo);
         if (original.isPresent()) {
             reclamo.marcarDuplicadoDe(original.get());
-            log.info("Reclamo {} marcado DUPLICADO de {}", reclamo.getId(), original.get().getId());
+            log.info("reclamo.duplicado", "reclamoId", reclamo.getId(), "originalId", original.get().getId());
             return;
         }
         calcularYGuardarScore(reclamo);
@@ -169,7 +168,7 @@ public class SvcIA implements Observador {
         }
         int score = calcularScore(reclamo, similares);
         repoReclamo.actualizarScore(reclamo.getId(), score);
-        log.info("Score inicial del reclamo {}: {}", reclamo.getId(), score);
+        log.info("reclamo.score_inicial", "reclamoId", reclamo.getId(), "score", score);
     }
 
     private List<ItemRanking> calcularRanking(Barrio barrio) {

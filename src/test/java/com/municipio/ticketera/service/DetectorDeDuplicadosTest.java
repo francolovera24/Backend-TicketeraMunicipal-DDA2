@@ -11,7 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.municipio.ticketera.DatosDePrueba;
-import com.municipio.ticketera.config.DuplicadosProperties;
+import com.municipio.ticketera.util.ConfiguracionTicketera;
 import com.municipio.ticketera.domain.Barrio;
 import com.municipio.ticketera.domain.Reclamo;
 import com.municipio.ticketera.domain.TipoDeReclamo;
@@ -42,7 +42,7 @@ class DetectorDeDuplicadosTest {
         repo = mock(ReclamoRepository.class);
         comparador = mock(ComparadorDeReclamos.class);
         detector = new DetectorDeDuplicados(repo, comparador,
-                new DuplicadosProperties(true, 150, Duration.ofDays(30), 5));
+                new ConfiguracionTicketera.Duplicados(true, 150, Duration.ofDays(30), 5));
     }
 
     @Test
@@ -110,7 +110,7 @@ class DetectorDeDuplicadosTest {
     @Test
     void deshabilitadoNoBuscaNada() {
         DetectorDeDuplicados apagado = new DetectorDeDuplicados(repo, comparador,
-                new DuplicadosProperties(false, 150, Duration.ofDays(30), 5));
+                new ConfiguracionTicketera.Duplicados(false, 150, Duration.ofDays(30), 5));
         assertThat(apagado.buscarOriginal(bache("Pozo", AQUI, 0))).isEmpty();
         verify(repo, never()).findByTipoAndEstadoInAndFechaCreacionAfterAndIdNot(any(), any(), any(), any());
     }

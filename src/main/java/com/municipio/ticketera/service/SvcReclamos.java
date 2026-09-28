@@ -4,7 +4,6 @@ import com.municipio.ticketera.domain.Barrio;
 import com.municipio.ticketera.domain.Ciudadano;
 import com.municipio.ticketera.domain.Estado;
 import com.municipio.ticketera.domain.Reclamo;
-import com.municipio.ticketera.domain.ReclamoInvalidoException;
 import com.municipio.ticketera.domain.TipoDeReclamo;
 import com.municipio.ticketera.domain.Ubicacion;
 import com.municipio.ticketera.messaging.Broker;
@@ -13,13 +12,14 @@ import com.municipio.ticketera.patterns.observer.Evento;
 import com.municipio.ticketera.patterns.observer.TipoEvento;
 import com.municipio.ticketera.repository.CiudadanoRepository;
 import com.municipio.ticketera.repository.ReclamoRepository;
+import com.municipio.ticketera.util.Bitacora;
+import com.municipio.ticketera.util.ValidacionException;
+import com.municipio.ticketera.util.Validador;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -31,7 +31,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class SvcReclamos {
 
-    private static final Logger log = LoggerFactory.getLogger(SvcReclamos.class);
+    private static final Bitacora log = Bitacora.de(SvcReclamos.class);
 
     private final ReclamoRepository repo;
     private final CiudadanoRepository ciudadanoRepo;
@@ -65,6 +65,8 @@ public class SvcReclamos {
      */
     public Reclamo registrarReclamo(UUID ciudadanoId, TipoDeReclamo tipo, String descripcion,
                                     Ubicacion ubicacion, String nombreBarrio) {
+        Validador.presente(ciudadanoId, "ciudadanoId");
+        Validador.presente(tipo, "tipo");
         boolean faltaBarrio = nombreBarrio == null || nombreBarrio.isBlank();
         Ubicacion ubicacionFinal = ubicacion;
         String barrioFinal = nombreBarrio;
@@ -82,7 +84,7 @@ public class SvcReclamos {
             }
         }
         if (barrioFinal == null || barrioFinal.isBlank()) {
-            throw new ReclamoInvalidoException(
+            throw new ValidacionException(
                     "No se pudo determinar el barrio a partir de la direccion; informelo en el campo barrio");
         }
         return registrar(ciudadanoId, tipo, descripcion, ubicacionFinal, svcZonas.resolverBarrio(barrioFinal));
@@ -92,7 +94,7 @@ public class SvcReclamos {
                               Ubicacion ubicacion, Barrio barrio) {
         ReclamoFactory fabrica = fabricas.get(tipo);
         if (fabrica == null) {
-            throw new ReclamoInvalidoException("Tipo de reclamo no soportado: " + tipo);
+            throw new ValidacionException("Tipo de reclamo no soportado: " + tipo);
         }
 
         return tx.execute(estado -> {
@@ -101,8 +103,8 @@ public class SvcReclamos {
             Reclamo reclamo = repo.save(fabrica.crear(descripcion, ubicacion, barrio, ciudadano));
             ciudadano.agregarReclamoAlHistorial(reclamo);
             broker.publicar(Evento.de(TipoEvento.RECLAMO_CREADO, reclamo.getId(), barrio.getNombre()));
-            log.info("Reclamo {} creado: tipo={} barrio={} urgente={}",
-                    reclamo.getId(), tipo, barrio.getNombre(), reclamo.isUrgente());
+            log.info("reclamo.registrado", "reclamoId", reclamo.getId(), "tipo", tipo,
+                    "barrio", barrio.getNombre(), "urgente", reclamo.isUrgente());
             return reclamo;
         });
     }
@@ -112,7 +114,7 @@ public class SvcReclamos {
         Reclamo reclamo = buscarReclamo(id);
         Estado anterior = reclamo.getEstado();
         reclamo.cambiarEstado(nuevoEstado);
-        log.info("Reclamo {}: {} -> {}", id, anterior, nuevoEstado);
+        log.info("reclamo.estado_cambiado", "reclamoId", id, "desde", anterior, "hacia", nuevoEstado);
 
         TipoEvento tipoEvento = switch (nuevoEstado) {
             case ASIGNADO -> TipoEvento.RECLAMO_ASIGNADO;
