@@ -80,9 +80,46 @@ interface CriticidadStrategy {
     +calcularScore(reclamo) : int
 }
 
-abstract class ReclamoFactory {
-    +{abstract} crear(tipo, descripcion, ubicacion) : Reclamo
+abstract class ReclamoFactory <<Factory Method>> {
+    +crear(descripcion, ubicacion, barrio, ciudadano) : Reclamo
+    #validar(descripcion, ubicacion, barrio, ciudadano) : void
+    #{abstract} construir(descripcion, ubicacion, barrio, ciudadano) : Reclamo
+    +{abstract} getTipo() : TipoDeReclamo
 }
+
+class CableadoReclamoFactory {
+    #construir(...) : Reclamo
+    +getTipo() : TipoDeReclamo
+}
+
+class BacheoReclamoFactory {
+    #construir(...) : Reclamo
+    +getTipo() : TipoDeReclamo
+}
+
+class AlumbradoReclamoFactory {
+    #construir(...) : Reclamo
+    +getTipo() : TipoDeReclamo
+}
+
+class ArboladoReclamoFactory {
+    #construir(...) : Reclamo
+    +getTipo() : TipoDeReclamo
+}
+
+class RuidosReclamoFactory {
+    #construir(...) : Reclamo
+    +getTipo() : TipoDeReclamo
+}
+
+note bottom of ReclamoFactory
+  crear() es el metodo plantilla (final):
+  validar() -> construir() (hook de cada subclase).
+  CableadoReclamoFactory.construir() crea el reclamo
+  y lo marca urgente (riesgo electrico); las demas
+  lo crean con su tipo. Svc_Reclamos elige la fabrica
+  por tipo (mapa TipoDeReclamo -> ReclamoFactory).
+end note
 
 ' ==================== CAPA PRESENTACION ====================
 
@@ -333,6 +370,12 @@ ResumenDeZona "1" --> "N" Reclamo : ordena
 
 ' ==================== RELACIONES DE PATRONES ====================
 
+ReclamoFactory <|-- CableadoReclamoFactory
+ReclamoFactory <|-- BacheoReclamoFactory
+ReclamoFactory <|-- AlumbradoReclamoFactory
+ReclamoFactory <|-- ArboladoReclamoFactory
+ReclamoFactory <|-- RuidosReclamoFactory
+
 Sujeto <|.. Broker
 Observador <|.. Svc_Cuadrillas
 Observador <|.. Svc_IA
@@ -352,7 +395,7 @@ REST_ResumenZona ..> Svc_IA : delega
 REST_Ciudadanos ..> Svc_Ciudadanos : delega
 SOAP_Reclamos ..> Svc_Reclamos : delega
 
-Svc_Reclamos --> ReclamoFactory : usa
+Svc_Reclamos --> "5" ReclamoFactory : elige por tipo
 Svc_Reclamos ..> Svc_Zonas : usa
 Svc_Reclamos ..> Broker : publica evento
 
