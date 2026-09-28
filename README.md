@@ -84,6 +84,27 @@ Resumen priorizado de un barrio:
 curl "http://localhost:8080/resumen-zona?barrio=Palermo"
 ```
 
+## Servicio SOAP
+
+Consulta de estado de un reclamo para integraciones externas (Spring-WS,
+contrato en `src/main/resources/xsd/reclamos.xsd`).
+
+- WSDL: http://localhost:8080/ws/reclamos.wsdl
+- Endpoint: `POST http://localhost:8080/ws`
+
+```bash
+curl -X POST http://localhost:8080/ws -H "Content-Type: text/xml" -d '
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:rec="http://municipio.com/ticketera/reclamos">
+  <soapenv:Body>
+    <rec:consultarEstadoReclamoRequest>
+      <rec:id><id-del-reclamo></rec:id>
+    </rec:consultarEstadoReclamoRequest>
+  </soapenv:Body>
+</soapenv:Envelope>'
+```
+Un id inexistente o mal formado devuelve un SOAP Fault de cliente.
+
 ## Mensajeria (RabbitMQ)
 
 ```

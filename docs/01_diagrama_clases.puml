@@ -121,6 +121,17 @@ class REST_Ciudadanos <<REST API>> {
     +obtenerHistorial(id) : List<Reclamo>
 }
 
+class SOAP_Reclamos <<SOAP>> {
+    -svcReclamos : Svc_Reclamos
+    +consultarEstadoReclamo(id) : EstadoReclamo
+}
+
+note right of SOAP_Reclamos
+  Servicio propio (no legado) para
+  integraciones externas. Spring-WS,
+  contrato XSD, WSDL en /ws/reclamos.wsdl.
+end note
+
 
 ' ==================== CAPA NEGOCIO ====================
 
@@ -307,6 +318,7 @@ PanelMunicipal ..> REST_Ciudadanos : usa
 REST_Reclamos ..> Svc_Reclamos : delega
 REST_ResumenZona ..> Svc_IA : delega
 REST_Ciudadanos ..> Svc_Ciudadanos : delega
+SOAP_Reclamos ..> Svc_Reclamos : delega
 
 Svc_Reclamos --> ReclamoFactory : usa
 Svc_Reclamos ..> Svc_Zonas : usa

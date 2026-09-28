@@ -26,9 +26,11 @@ FUERA (no implementar):
 - Autenticacion/autorizacion y frontend.
 - Outbox pattern: solo mencionarlo como mejora futura.
 
-PENDIENTE (decision abierta): la Segunda Parte exige al menos un servicio SOAP.
-Idea: `SOAP_Reclamos`, consulta de estado de un reclamo, que delega en
-`SvcReclamos`. No hacerlo hasta que se pida.
+SOAP (Segunda Parte, implementado): `SoapReclamos` con Spring-WS, contract-first
+(`src/main/resources/xsd/reclamos.xsd`, clases generadas en `dto.soap`).
+Operacion `consultarEstadoReclamo(id)`, delega en `SvcReclamos.buscarReclamo`.
+Endpoint `/ws`, WSDL en `/ws/reclamos.wsdl`. Es un servicio propio para
+integraciones externas: NO es un sistema legado.
 
 ## Paquetes (base: com.municipio.ticketera)
 controller, service, repository, domain, patterns/{factory,strategy,observer},

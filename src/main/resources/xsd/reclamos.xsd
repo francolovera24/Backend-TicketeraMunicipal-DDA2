@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Contrato del servicio SOAP de reclamos (propio, no legado): consulta de estado
+  para integraciones externas. El WSDL se publica en /ws/reclamos.wsdl.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://municipio.com/ticketera/reclamos"
+           targetNamespace="http://municipio.com/ticketera/reclamos"
+           elementFormDefault="qualified">
+
+    <xs:element name="consultarEstadoReclamoRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="id" type="tns:uuid"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="consultarEstadoReclamoResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="reclamo" type="tns:estadoReclamo"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="estadoReclamo">
+        <xs:sequence>
+            <xs:element name="id" type="tns:uuid"/>
+            <xs:element name="tipo" type="tns:codigoTipo"/>
+            <xs:element name="estado" type="tns:codigoEstado"/>
+            <xs:element name="urgente" type="xs:boolean"/>
+            <xs:element name="barrio" type="xs:string"/>
+            <xs:element name="cuadrillaAsignada" type="xs:boolean"/>
+            <xs:element name="reclamoOriginalId" type="tns:uuid" minOccurs="0"/>
+            <xs:element name="fechaCreacion" type="xs:dateTime"/>
+            <xs:element name="fechaActualizacion" type="xs:dateTime"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:simpleType name="uuid">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="codigoTipo">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="CABLEADO"/>
+            <xs:enumeration value="BACHEO"/>
+            <xs:enumeration value="ALUMBRADO"/>
+            <xs:enumeration value="ARBOLADO"/>
+            <xs:enumeration value="RUIDOS_MOLESTOS"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="codigoEstado">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="NUEVO"/>
+            <xs:enumeration value="EN_ANALISIS"/>
+            <xs:enumeration value="ASIGNADO"/>
+            <xs:enumeration value="EN_PROCESO"/>
+            <xs:enumeration value="RESUELTO"/>
+            <xs:enumeration value="RECHAZADO"/>
+            <xs:enumeration value="DUPLICADO"/>
+        </xs:restriction>
+    </xs:simpleType>
+</xs:schema>

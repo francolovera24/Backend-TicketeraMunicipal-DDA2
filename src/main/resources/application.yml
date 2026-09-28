@@ -53,6 +53,13 @@ spring:
           multiplier: 2
           max-interval: 5s
 
+  # Servicio SOAP (Spring-WS): MessageDispatcherServlet en /ws/*
+  webservices:
+    path: /ws
+    servlet:
+      init:
+        transformWsdlLocations: true
+
 ticketera:
   ia:
     # stub (por defecto, sin credenciales) o llm (Gemini, requiere LLM_API_KEY)

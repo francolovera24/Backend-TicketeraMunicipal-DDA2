@@ -10,10 +10,14 @@ package "Capa Presentacion" {
     [PanelMunicipal] as Panel
 }
 
+[Sistemas externos\n(integraciones)] as Externos
+
 package "Capa Servicios (SOA / Microservicios)" {
     component "Servicio de Reclamos" as CompReclamos {
         interface "IReclamosREST" as IReclamos
+        interface "IReclamosSOAP" as ISoap
         [REST_Reclamos]
+        [SOAP_Reclamos]
         [Svc_Reclamos <<Facade>>]
         [ReclamoFactory]
     }
@@ -62,6 +66,7 @@ WebApp --> ICiudadanos
 Panel --> IReclamos
 Panel --> IResumen
 Panel --> ICiudadanos
+Externos --> ISoap : SOAP (consulta de estado)
 
 CompReclamos --> IMsg : publica eventos
 CompCuadrillas --> IMsg : consume eventos

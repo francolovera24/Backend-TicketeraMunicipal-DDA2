@@ -7,6 +7,10 @@ node "Equipo del operador municipal" as ClienteMunicipal {
     artifact "PanelMunicipal (SPA)" as artPanel
 }
 
+node "Sistema externo" as ClienteSoap {
+    artifact "Cliente SOAP\n(integracion)" as artSoap
+}
+
 node "Servidor Docker Host" as DockerHost {
 
     node "Contenedor: app" as AppContainer {
@@ -36,6 +40,7 @@ cloud "Proveedor de Geolocalizacion" as NodoGeo {
 
 ClienteVecino --> AppContainer : HTTPS 8080\n(REST JSON)
 ClienteMunicipal --> AppContainer : HTTPS 8080\n(REST JSON)
+ClienteSoap --> AppContainer : HTTPS 8080\n(SOAP /ws, WSDL /ws/reclamos.wsdl)
 
 AppContainer --> PgContainer : JDBC 5432
 AppContainer --> MqContainer : AMQP 5672
