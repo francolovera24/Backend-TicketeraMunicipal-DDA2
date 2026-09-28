@@ -53,6 +53,26 @@ spring:
           multiplier: 2
           max-interval: 5s
 
+ticketera:
+  ia:
+    # stub (por defecto, sin credenciales) o llm (Gemini, requiere LLM_API_KEY)
+    generador: ${IA_GENERADOR:stub}
+    cache-ttl-minutos: 5
+    llm:
+      url: ${LLM_URL:https://generativelanguage.googleapis.com/v1beta}
+      modelo: ${LLM_MODEL:gemini-2.5-flash}
+      api-key: ${LLM_API_KEY:}
+      timeout-conexion: 3s
+      timeout-lectura: 20s
+  geo:
+    habilitado: ${GEO_HABILITADO:true}
+    url: ${GEO_URL:https://nominatim.openstreetmap.org}
+    user-agent: TicketeraMunicipal-UADE/0.1
+    contacto: ${GEO_CONTACTO:}
+    contexto: Ciudad Autonoma de Buenos Aires, Argentina
+    timeout: 5s
+    intervalo-minimo: 1s
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

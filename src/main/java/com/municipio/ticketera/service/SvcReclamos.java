@@ -16,6 +16,7 @@ import com.municipio.ticketera.repository.ReclamoRepository;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,7 @@ public class SvcReclamos {
     private final ReclamoRepository repo;
     private final CiudadanoRepository ciudadanoRepo;
     private final SvcZonas svcZonas;
+    private final GeoClient geoClient;
     private final Broker broker;
     private final TransactionTemplate tx;
     private final Map<TipoDeReclamo, ReclamoFactory> fabricas = new EnumMap<>(TipoDeReclamo.class);
@@ -42,27 +44,52 @@ public class SvcReclamos {
     public SvcReclamos(ReclamoRepository repo,
                        CiudadanoRepository ciudadanoRepo,
                        SvcZonas svcZonas,
+                       GeoClient geoClient,
                        Broker broker,
                        TransactionTemplate tx,
                        List<ReclamoFactory> listaFabricas) {
         this.repo = repo;
         this.ciudadanoRepo = ciudadanoRepo;
         this.svcZonas = svcZonas;
+        this.geoClient = geoClient;
         this.broker = broker;
         this.tx = tx;
         listaFabricas.forEach(f -> fabricas.put(f.getTipo(), f));
     }
 
     /**
-     * Alta de un reclamo. El barrio se resuelve antes de abrir la transaccion
-     * principal; el evento reclamo.creado sale recien despues del commit.
+     * Alta de un reclamo. Geocodificacion y barrio se resuelven antes de abrir la
+     * transaccion principal; el evento reclamo.creado sale recien despues del commit.
+     * Si faltan el barrio o las coordenadas se consultan a API_Geo; el barrio
+     * informado por el vecino tiene prioridad sobre el geocodificado.
      */
     public Reclamo registrarReclamo(UUID ciudadanoId, TipoDeReclamo tipo, String descripcion,
                                     Ubicacion ubicacion, String nombreBarrio) {
-        if (nombreBarrio == null || nombreBarrio.isBlank()) {
-            throw new ReclamoInvalidoException("El barrio es obligatorio");
+        boolean faltaBarrio = nombreBarrio == null || nombreBarrio.isBlank();
+        Ubicacion ubicacionFinal = ubicacion;
+        String barrioFinal = nombreBarrio;
+
+        if (ubicacion != null && (faltaBarrio || !ubicacion.tieneCoordenadas())) {
+            Optional<GeoClient.ResultadoGeo> geo = geoClient.geocodificar(ubicacion.getDireccion());
+            if (geo.isPresent()) {
+                // Solo se completan si no vino ninguna; una sola coordenada la rechaza la fabrica.
+                if (ubicacion.getLat() == null && ubicacion.getLon() == null) {
+                    ubicacionFinal = ubicacion.conCoordenadas(geo.get().lat(), geo.get().lon());
+                }
+                if (faltaBarrio) {
+                    barrioFinal = geo.get().barrio();
+                }
+            }
         }
-        Barrio barrio = svcZonas.resolverBarrio(nombreBarrio);
+        if (barrioFinal == null || barrioFinal.isBlank()) {
+            throw new ReclamoInvalidoException(
+                    "No se pudo determinar el barrio a partir de la direccion; informelo en el campo barrio");
+        }
+        return registrar(ciudadanoId, tipo, descripcion, ubicacionFinal, svcZonas.resolverBarrio(barrioFinal));
+    }
+
+    private Reclamo registrar(UUID ciudadanoId, TipoDeReclamo tipo, String descripcion,
+                              Ubicacion ubicacion, Barrio barrio) {
         ReclamoFactory fabrica = fabricas.get(tipo);
         if (fabrica == null) {
             throw new ReclamoInvalidoException("Tipo de reclamo no soportado: " + tipo);

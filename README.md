@@ -38,7 +38,9 @@ curl -X POST http://localhost:8080/ciudadanos \
   -d '{"nombre":"Ana Perez","contacto":"ana.perez@example.com"}'
 ```
 
-Registrar un reclamo (el barrio se busca sin distinguir mayusculas ni acentos):
+Registrar un reclamo. El barrio es opcional: si no se informa (o faltan las
+coordenadas) se obtiene de la direccion con Nominatim. Se busca sin distinguir
+mayusculas ni acentos:
 ```bash
 curl -X POST http://localhost:8080/reclamos \
   -H "Content-Type: application/json" \
@@ -103,14 +105,43 @@ ticketera.eventos.dlx (fanout)     -> ticketera.eventos.dlq
 
 Las colas se pueden ver en el panel http://localhost:15672.
 
+## Componente de IA
+
+`GET /resumen-zona` arma el ranking de reclamos activos con las estrategias de
+criticidad y pide el texto a un `GeneradorDeResumen`:
+
+| `IA_GENERADOR` | Implementacion |
+|---|---|
+| `stub` (por defecto) | `GeneradorDeResumenStub`: plantilla fija, sin credenciales |
+| `llm` | `LlmClient`: Gemini (Google AI Studio), requiere `LLM_API_KEY` |
+
+Para usar Gemini, en `.env` (nunca en el repo):
+```
+IA_GENERADOR=llm
+LLM_API_KEY=<tu key>
+LLM_MODEL=gemini-2.5-flash
+```
+- Al modelo solo se envian barrio, tipo y descripcion (nunca nombre ni contacto
+  del vecino), hasta 20 reclamos.
+- Timeouts de 3 s (conexion) y 20 s (lectura). Si el LLM falla o no responde,
+  se devuelve el ranking con un texto de fallback (`generadoPorIa: false`), que
+  se cachea solo 30 s para reintentar pronto. Un resumen generado se cachea 5 min.
+
+## Geolocalizacion (Nominatim)
+
+`GeoClient` consulta https://nominatim.openstreetmap.org respetando su politica:
+User-Agent propio (con `GEO_CONTACTO` si se define), como maximo 1 pedido por
+segundo y resultados cacheados. Si falla, el reclamo se registra igual siempre
+que el barrio venga informado. `GEO_HABILITADO=false` lo desactiva.
+
 ## Errores
 Formato RFC 7807 (`application/problem+json`): 400 datos invalidos, 404 recurso
 inexistente, 409 conflicto (contacto repetido, transicion invalida, modificacion
 concurrente), 500 error inesperado.
 
 ## Estado
-Etapas 1 a 5: infraestructura, dominio, patrones, servicios, API REST y
-mensajeria. Pendiente: LLM real y geolocalizacion, tests.
+Etapas 1 a 6: infraestructura, dominio, patrones, servicios, API REST,
+mensajeria, IA con Gemini y geolocalizacion. Pendiente: tests.
 
 Mejora futura: patron Outbox, para no perder un evento si RabbitMQ no esta
 disponible justo despues del commit (hoy queda registrado en el log).

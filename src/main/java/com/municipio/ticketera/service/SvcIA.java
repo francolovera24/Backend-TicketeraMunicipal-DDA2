@@ -13,6 +13,7 @@ import com.municipio.ticketera.patterns.observer.TipoEvento;
 import com.municipio.ticketera.patterns.strategy.CriticidadStrategy;
 import com.municipio.ticketera.repository.ReclamoRepository;
 import com.municipio.ticketera.service.GeneradorDeResumen.ReclamoParaResumen;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -35,6 +36,8 @@ public class SvcIA implements Observador {
 
     static final String TEXTO_FALLBACK =
             "No se pudo generar el resumen en lenguaje natural. Se muestra solo el ranking calculado.";
+
+    static final Duration TTL_FALLBACK = Duration.ofSeconds(30);
 
     private static final Logger log = LoggerFactory.getLogger(SvcIA.class);
 
@@ -99,7 +102,12 @@ public class SvcIA implements Observador {
         }
 
         ResumenDeZona resumen = new ResumenDeZona(barrio.getNombre(), texto, Instant.now(), generadoPorIa, ranking);
-        cache.set(clave, resumen);
+        if (generadoPorIa) {
+            cache.set(clave, resumen);
+        } else {
+            // El fallback se cachea poco: si el LLM se recupera, el proximo pedido lo reintenta.
+            cache.set(clave, resumen, TTL_FALLBACK);
+        }
         broker.publicar(Evento.de(TipoEvento.ZONA_RESUMEN, null, barrio.getNombre()));
         return resumen;
     }
