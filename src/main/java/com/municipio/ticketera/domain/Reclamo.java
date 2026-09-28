@@ -16,7 +16,7 @@ import jakarta.persistence.Version;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
-import org.hibernate.annotations.OptimisticLock;
+import org.hibernate.annotations.DynamicUpdate;
 
 /**
  * Reclamo de infraestructura urbana. Se crea solo a traves de una
@@ -24,6 +24,9 @@ import org.hibernate.annotations.OptimisticLock;
  */
 @Entity
 @Table(name = "reclamo")
+// Solo se actualizan las columnas modificadas: asi un cambio de estado no pisa el
+// score que SvcIA escribe en paralelo desde otra cola.
+@DynamicUpdate
 public class Reclamo {
 
     @Id
@@ -62,8 +65,8 @@ public class Reclamo {
     @Column(name = "fecha_actualizacion", nullable = false)
     private Instant fechaActualizacion;
 
-    // Es un dato derivado que recalcula SvcIA: no debe chocar con cambios de estado concurrentes.
-    @OptimisticLock(excluded = true)
+    // Dato derivado: SvcIA lo escribe con un UPDATE puntual (ReclamoRepository.actualizarScore)
+    // para no pisar cambios de estado concurrentes ni chocar con el @Version.
     @Column(name = "score_criticidad", nullable = false)
     private int scoreCriticidad;
 
@@ -109,10 +112,6 @@ public class Reclamo {
     /** Antiguedad del reclamo en horas completas. */
     public long calcularAntiguedad() {
         return Duration.between(fechaCreacion, Instant.now()).toHours();
-    }
-
-    public void actualizarScore(int score) {
-        this.scoreCriticidad = score;
     }
 
     public boolean estaActivo() {

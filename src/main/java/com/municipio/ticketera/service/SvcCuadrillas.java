@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,12 @@ public class SvcCuadrillas implements Observador {
         this.repo = repo;
         this.reclamoRepo = reclamoRepo;
         this.broker = broker;
+    }
+
+    /** Observer: se registra en el Broker cuando la aplicacion ya esta lista. */
+    @EventListener(ApplicationReadyEvent.class)
+    public void suscribirse() {
+        broker.suscribir(this);
     }
 
     @Override

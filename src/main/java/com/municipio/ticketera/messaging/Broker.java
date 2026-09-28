@@ -5,15 +5,17 @@ import com.municipio.ticketera.patterns.observer.Evento;
 import com.municipio.ticketera.patterns.observer.Observador;
 import com.municipio.ticketera.patterns.observer.Sujeto;
 import java.time.Instant;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.listener.MessageListenerContainer;
+import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
+import org.springframework.aop.framework.AopProxyUtils;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -31,20 +33,33 @@ public class Broker implements Sujeto {
     private static final Logger log = LoggerFactory.getLogger(Broker.class);
 
     private final RabbitTemplate rabbitTemplate;
-    private final Set<Observador> suscriptos = ConcurrentHashMap.newKeySet();
+    private final RabbitListenerEndpointRegistry listeners;
+    // Diferido: ConsumidorEventos depende de los observadores, que dependen del Broker.
+    private final ObjectProvider<ConsumidorEventos> consumidor;
 
-    public Broker(RabbitTemplate rabbitTemplate) {
+    public Broker(RabbitTemplate rabbitTemplate,
+                  RabbitListenerEndpointRegistry listeners,
+                  ObjectProvider<ConsumidorEventos> consumidor) {
         this.rabbitTemplate = rabbitTemplate;
+        this.listeners = listeners;
+        this.consumidor = consumidor;
     }
 
+    /**
+     * Suscribir = activar el listener de la cola del observador. La cola y sus
+     * bindings estan declarados en RabbitMQConfig.
+     */
     @Override
     public void suscribir(Observador observador) {
-        suscriptos.add(observador);
+        contenedorDe(observador).start();
+        log.info("Observador suscripto: {}", nombre(observador));
     }
 
+    /** Desuscribir = detener el listener: los eventos quedan esperando en la cola. */
     @Override
     public void desuscribir(Observador observador) {
-        suscriptos.remove(observador);
+        contenedorDe(observador).stop();
+        log.info("Observador desuscripto: {}", nombre(observador));
     }
 
     /** Notificar = publicar al exchange. */
@@ -73,6 +88,19 @@ public class Broker implements Sujeto {
         } else {
             enviar(completo);
         }
+    }
+
+    private MessageListenerContainer contenedorDe(Observador observador) {
+        String id = consumidor.getObject().listenerDe(observador);
+        MessageListenerContainer contenedor = id != null ? listeners.getListenerContainer(id) : null;
+        if (contenedor == null) {
+            throw new IllegalArgumentException("No hay una cola configurada para " + nombre(observador));
+        }
+        return contenedor;
+    }
+
+    private static String nombre(Observador observador) {
+        return AopProxyUtils.ultimateTargetClass(observador).getSimpleName();
     }
 
     private void enviar(Evento evento) {

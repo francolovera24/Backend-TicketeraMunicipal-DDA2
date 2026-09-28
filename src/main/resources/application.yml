@@ -37,6 +37,21 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    # El broker confirma cada publicacion; los nacks se loguean (RabbitMQConfig).
+    publisher-confirm-type: correlated
+    listener:
+      simple:
+        # ACK del contenedor recien cuando el listener termina sin error.
+        acknowledge-mode: auto
+        prefetch: 10
+        # Un mensaje que agota los reintentos no se reencola: va a la DLX -> DLQ.
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+          multiplier: 2
+          max-interval: 5s
 
 springdoc:
   swagger-ui:

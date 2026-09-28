@@ -1,6 +1,7 @@
 package com.municipio.ticketera.service;
 
 import com.municipio.ticketera.domain.Barrio;
+import com.municipio.ticketera.domain.Estado;
 import com.municipio.ticketera.domain.Reclamo;
 import com.municipio.ticketera.domain.ResumenDeZona;
 import com.municipio.ticketera.domain.ResumenDeZona.ItemRanking;
@@ -16,11 +17,13 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -101,14 +104,39 @@ public class SvcIA implements Observador {
         return resumen;
     }
 
-    /** Invalida la cache de la zona del evento. */
+    /** Observer: se registra en el Broker cuando la aplicacion ya esta lista. */
+    @EventListener(ApplicationReadyEvent.class)
+    public void suscribirse() {
+        broker.suscribir(this);
+    }
+
+    /**
+     * Invalida la cache de la zona del evento. Ante reclamo.creado ademas calcula
+     * y guarda el score inicial del reclamo, para que no quede en 0 hasta el
+     * primer resumen.
+     */
     @Override
+    @Transactional
     public void actualizar(Evento evento) {
-        if (evento.barrio() == null) {
-            return;
+        if (evento.barrio() != null) {
+            cache.invalidar(svcZonas.normalizar(evento.barrio()));
+            log.info("Cache de resumen invalidada para {} por {}", evento.barrio(), evento.tipo());
         }
-        cache.invalidar(svcZonas.normalizar(evento.barrio()));
-        log.info("Cache de resumen invalidada para {} por {}", evento.barrio(), evento.tipo());
+        if (evento.tipo() == TipoEvento.RECLAMO_CREADO && evento.reclamoId() != null) {
+            repoReclamo.findById(evento.reclamoId()).ifPresent(this::calcularYGuardarScore);
+        }
+    }
+
+    private void calcularYGuardarScore(Reclamo reclamo) {
+        long similares = repoReclamo.countByBarrio_IdAndTipoAndEstadoIn(
+                reclamo.getBarrio().getId(), reclamo.getTipo(), Estado.ACTIVOS);
+        // El conteo incluye al propio reclamo si sigue activo.
+        if (reclamo.estaActivo()) {
+            similares--;
+        }
+        int score = calcularScore(reclamo, similares);
+        repoReclamo.actualizarScore(reclamo.getId(), score);
+        log.info("Score inicial del reclamo {}: {}", reclamo.getId(), score);
     }
 
     private List<ItemRanking> calcularRanking(Barrio barrio) {
@@ -121,7 +149,7 @@ public class SvcIA implements Observador {
                     // Similares = otros reclamos activos del mismo tipo en la zona.
                     long similares = porTipo.get(r.getTipo()) - 1;
                     int score = calcularScore(r, similares);
-                    r.actualizarScore(score);
+                    repoReclamo.actualizarScore(r.getId(), score);
                     return new ItemRanking(r.getId(), r.getTipo(), r.getDescripcion(),
                             r.getUbicacion().getDireccion(), r.getEstado(), r.isUrgente(),
                             r.calcularAntiguedad(), score);

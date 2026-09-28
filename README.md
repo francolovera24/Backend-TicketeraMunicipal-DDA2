@@ -81,12 +81,36 @@ Resumen priorizado de un barrio:
 curl "http://localhost:8080/resumen-zona?barrio=Palermo"
 ```
 
+## Mensajeria (RabbitMQ)
+
+```
+ticketera.eventos (topic)
+  reclamo.creado, reclamo.resuelto -> cuadrillas.eventos -> SvcCuadrillas
+  reclamo.#                        -> ia.eventos         -> SvcIA
+ticketera.eventos.dlx (fanout)     -> ticketera.eventos.dlq
+```
+
+- `SvcCuadrillas`: al crearse un reclamo le asigna una cuadrilla libre de su
+  especialidad (si no hay, queda pendiente); al resolverse, libera la cuadrilla
+  y le asigna el reclamo pendiente mas antiguo de ese tipo.
+- `SvcIA`: invalida la cache del resumen del barrio y, ante `reclamo.creado`,
+  calcula el score inicial del reclamo.
+- Los eventos se publican despues del commit, persistentes y con confirmacion
+  del broker. El consumidor confirma (ACK) al terminar; si falla reintenta 3
+  veces con backoff y despues el mensaje va a la DLQ.
+- Idempotencia: tabla `evento_procesado` con clave (eventId, cola); un evento
+  repetido se descarta.
+
+Las colas se pueden ver en el panel http://localhost:15672.
+
 ## Errores
 Formato RFC 7807 (`application/problem+json`): 400 datos invalidos, 404 recurso
 inexistente, 409 conflicto (contacto repetido, transicion invalida, modificacion
 concurrente), 500 error inesperado.
 
 ## Estado
-Etapas 1 a 4: infraestructura, dominio, patrones, servicios y API REST.
-Pendiente: mensajeria completa (consumidores, reintentos, DLQ), LLM real y
-geolocalizacion, tests.
+Etapas 1 a 5: infraestructura, dominio, patrones, servicios, API REST y
+mensajeria. Pendiente: LLM real y geolocalizacion, tests.
+
+Mejora futura: patron Outbox, para no perder un evento si RabbitMQ no esta
+disponible justo despues del commit (hoy queda registrado en el log).
