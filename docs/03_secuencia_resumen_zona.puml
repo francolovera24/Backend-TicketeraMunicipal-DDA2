@@ -39,7 +39,15 @@ else barrio valido
 
         Svc -> Svc : ordenarPorScore(reclamos)
 
-        Svc -> LLM : generarTexto(barrio, reclamosOrdenados)
+        Svc -> Svc : anonimizar(reclamos)
+        note right of Svc
+          Paso de privacidad (Anonimizador): de cada descripcion
+          se quitan nombre y contacto del vecino, emails, DNI y
+          telefonos. Al LLM solo van barrio, tipo y descripcion
+          anonimizada. El ranking del Panel conserva el original.
+        end note
+
+        Svc -> LLM : generarTexto(barrio, reclamosAnonimizados)
 
         alt LLM responde OK
             LLM --> Svc : textoResumen

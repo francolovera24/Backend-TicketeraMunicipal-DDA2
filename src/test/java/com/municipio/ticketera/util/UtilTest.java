@@ -59,6 +59,45 @@ class UtilTest {
     }
 
     @Nested
+    class AnonimizadorTest {
+
+        @Test
+        void borraNombreYContactoDelVecino() {
+            String texto = "Soy Ana Perez, escribanme a ana@example.com. El pozo de Perez esta enorme";
+            assertThat(Anonimizador.anonimizar(texto, "Ana Perez", "ana@example.com"))
+                    .isEqualTo("Soy [dato personal], escribanme a [dato personal]. El pozo de [dato personal] esta enorme");
+        }
+
+        @Test
+        void noBorraPalabrasCortasNiPartesDeOtrasPalabras() {
+            // "Luz" (nombre de 3 letras) no se borra suelta: tambien es "luz" de alumbrado.
+            assertThat(Anonimizador.anonimizar("La luz de la esquina no anda", "Luz Gomez", null))
+                    .isEqualTo("La luz de la esquina no anda");
+            assertThat(Anonimizador.anonimizar("Gomezano reporto", "Luz Gomez", null))
+                    .isEqualTo("Gomezano reporto");
+        }
+
+        @Test
+        void detectaEmailsTelefonosYDni() {
+            String texto = "Llamar al 11 4567-8901 o +54 9 11 2345 6789, mail vecino@mail.com, DNI 30.123.456";
+            assertThat(Anonimizador.anonimizar(texto))
+                    .isEqualTo("Llamar al [telefono] o [telefono], mail [email], DNI [documento]");
+        }
+
+        @Test
+        void noConfundeAlturasDeCalleConTelefonos() {
+            assertThat(Anonimizador.anonimizar("Bache entre Cabildo 2000 y 2100, frente al 1850"))
+                    .isEqualTo("Bache entre Cabildo 2000 y 2100, frente al 1850");
+        }
+
+        @Test
+        void textoVacioONuloSeDevuelveIgual() {
+            assertThat(Anonimizador.anonimizar(null, "Ana")).isNull();
+            assertThat(Anonimizador.anonimizar("  ", "Ana")).isEqualTo("  ");
+        }
+    }
+
+    @Nested
     class BitacoraTest {
 
         @Test

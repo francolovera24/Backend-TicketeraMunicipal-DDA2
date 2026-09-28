@@ -123,6 +123,28 @@ class SvcIATest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void alGeneradorLeLlegaLaDescripcionAnonimizada() {
+        // DatosDePrueba.ciudadano() es "Ana Perez" <ana@example.com>
+        Barrio palermo = DatosDePrueba.barrio("Palermo");
+        Reclamo reclamo = DatosDePrueba.reclamo(TipoDeReclamo.BACHEO,
+                "Soy Ana Perez (ana@example.com, 11 4567-8901): pozo enorme", ubicacion(), palermo);
+        prepararBarrio(palermo, List.of(reclamo));
+        when(generador.generarTexto(anyString(), anyList())).thenReturn("texto");
+
+        ResumenDeZona resumen = svcIA.generarResumen("Palermo");
+
+        org.mockito.ArgumentCaptor<List<GeneradorDeResumen.ReclamoParaResumen>> enviados =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(generador).generarTexto(anyString(), enviados.capture());
+        assertThat(enviados.getValue().get(0).descripcion())
+                .isEqualTo("Soy [dato personal] ([dato personal], [telefono]): pozo enorme")
+                .doesNotContain("Ana", "Perez", "example.com", "4567");
+        // El ranking que ve el Panel Municipal conserva el texto original.
+        assertThat(resumen.ranking().get(0).descripcion()).contains("Ana Perez");
+    }
+
+    @Test
     void unEventoDelBarrioInvalidaTodasSusVariantes() {
         when(svcZonas.normalizar("Palermo")).thenReturn("palermo");
         svcIA.actualizar(com.municipio.ticketera.patterns.observer.Evento.de(

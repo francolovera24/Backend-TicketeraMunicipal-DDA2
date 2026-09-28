@@ -54,7 +54,8 @@ Repo --> Detector : candidatos
 Detector -> Detector : filtrar por distancia / barrio
 
 alt hay candidatos
-    Detector -> LLM : generarTexto(nuevo, candidatos)
+    Detector -> Detector : anonimizar descripciones\n(nuevo y candidatos)
+    Detector -> LLM : generarTexto(nuevo, candidatos)\n(tipo, descripcion anonimizada, distancia)
     alt LLM responde
         LLM --> Detector : numero del duplicado o 0
     else LLM falla

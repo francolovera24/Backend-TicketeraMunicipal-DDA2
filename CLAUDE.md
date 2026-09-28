@@ -138,6 +138,10 @@ en cache -> publicar `zona.resumen`.
   LLM_URL, LLM_API_KEY, LLM_MODEL), elegido por perfil o propiedad.
 - Resiliencia: timeout y fallback (si el LLM falla, devolver solo el ranking).
 - Privacidad: al LLM solo tipo, barrio y descripcion; nunca nombre ni contacto.
+  Paso explicito `SvcIA.anonimizar` (y en DetectorDeDuplicados) con
+  `util.Anonimizador`: borra de la descripcion el nombre y el contacto del
+  vecino y cualquier email, DNI o telefono. Limitacion conocida: no detecta
+  nombres de terceros escritos en el texto.
 - Cache en memoria; Redis queda como mejora.
 - Deteccion de duplicados (decidido): ante reclamo.creado, `DetectorDeDuplicados`
   busca candidatos por reglas (mismo tipo, activo, ultimos 30 dias, a menos de

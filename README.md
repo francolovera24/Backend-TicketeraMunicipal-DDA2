@@ -168,8 +168,10 @@ IA_GENERADOR=llm
 LLM_API_KEY=<tu key>
 LLM_MODEL=gemini-2.5-flash
 ```
-- Al modelo solo se envian barrio, tipo y descripcion (nunca nombre ni contacto
-  del vecino), hasta 20 reclamos.
+- Al modelo solo se envian barrio, tipo y descripcion, hasta 20 reclamos. Antes
+  se anonimiza la descripcion (`util.Anonimizador`): se borran el nombre y el
+  contacto del vecino y cualquier email, DNI o telefono. No detecta nombres de
+  terceros escritos en el texto.
 - Timeouts de 3 s (conexion) y 20 s (lectura). Si el LLM falla o no responde,
   se devuelve el ranking con un texto de fallback (`generadoPorIa: false`), que
   se cachea solo 30 s para reintentar pronto. Un resumen generado se cachea 5 min.

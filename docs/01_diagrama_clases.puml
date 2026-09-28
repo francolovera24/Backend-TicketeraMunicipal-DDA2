@@ -257,6 +257,7 @@ class Svc_IA <<Strategy Context>> {
     +calcularScore(reclamo, similaresEnZona) : int
     -estrategiaPara(tipo) : CriticidadStrategy
     +generarResumen(barrio, tipo, desde) : ResumenDeZona
+    -anonimizar(reclamo) : ReclamoParaResumen
     +validarReclamo(reclamo) : void
     +actualizar(evento) : void
 }
@@ -380,6 +381,10 @@ class Bitacora <<util>> {
     +info(evento, datos) : void
     +aviso(evento, datos) : void
     +error(evento, causa, datos) : void
+}
+
+class Anonimizador <<util>> {
+    +{static} anonimizar(texto, datosPersonales) : String
 }
 
 class ConfiguracionTicketera <<util>> {
@@ -507,6 +512,8 @@ ReclamoFactory ..> Validador : valida con
 Svc_Ciudadanos ..> Validador : valida con
 SOAP_Reclamos ..> Validador : valida con
 Svc_IA ..> ConfiguracionTicketera : lee
+Svc_IA ..> Anonimizador : antes del LLM
+DetectorDeDuplicados ..> Anonimizador : antes del LLM
 DetectorDeDuplicados ..> ConfiguracionTicketera : lee
 
 ' ==================== RELACIONES DE MENSAJERIA ====================

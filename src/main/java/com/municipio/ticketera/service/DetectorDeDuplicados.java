@@ -5,6 +5,7 @@ import com.municipio.ticketera.domain.Reclamo;
 import com.municipio.ticketera.domain.Ubicacion;
 import com.municipio.ticketera.repository.ReclamoRepository;
 import com.municipio.ticketera.service.ComparadorDeReclamos.ReclamoParaComparar;
+import com.municipio.ticketera.util.Anonimizador;
 import com.municipio.ticketera.util.Bitacora;
 import com.municipio.ticketera.util.ConfiguracionTicketera;
 import java.time.Instant;
@@ -60,7 +61,7 @@ public class DetectorDeDuplicados {
         }
         try {
             OptionalInt indice = comparador.buscarMismoProblema(
-                    new ReclamoParaComparar(reclamo.getTipo(), reclamo.getDescripcion(), null),
+                    new ReclamoParaComparar(reclamo.getTipo(), descripcionAnonima(reclamo), null),
                     candidatos.stream().map(otro -> paraComparar(reclamo, otro)).toList());
             log.info("duplicados.comparacion", "reclamoId", reclamo.getId(), "candidatos", candidatos.size(),
                     "coincidencia", indice.isPresent() ? "si" : "no");
@@ -111,6 +112,12 @@ public class DetectorDeDuplicados {
     private static ReclamoParaComparar paraComparar(Reclamo nuevo, Reclamo candidato) {
         double distancia = distanciaOrden(nuevo, candidato);
         Integer metros = distancia == Double.MAX_VALUE ? null : (int) Math.round(distancia);
-        return new ReclamoParaComparar(candidato.getTipo(), candidato.getDescripcion(), metros);
+        return new ReclamoParaComparar(candidato.getTipo(), descripcionAnonima(candidato), metros);
+    }
+
+    /** Mismo paso de privacidad que el resumen: el comparador puede ser el LLM. */
+    private static String descripcionAnonima(Reclamo reclamo) {
+        return Anonimizador.anonimizar(reclamo.getDescripcion(),
+                reclamo.getCiudadano().getNombre(), reclamo.getCiudadano().getContacto());
     }
 }

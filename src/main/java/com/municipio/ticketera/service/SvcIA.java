@@ -13,6 +13,7 @@ import com.municipio.ticketera.patterns.observer.TipoEvento;
 import com.municipio.ticketera.patterns.strategy.CriticidadStrategy;
 import com.municipio.ticketera.repository.ReclamoRepository;
 import com.municipio.ticketera.service.GeneradorDeResumen.ReclamoParaResumen;
+import com.municipio.ticketera.util.Anonimizador;
 import com.municipio.ticketera.util.Bitacora;
 import com.municipio.ticketera.util.ConfiguracionTicketera;
 import java.time.Duration;
@@ -103,10 +104,10 @@ public class SvcIA implements Observador {
         }
 
         Instant desdeInstante = desde == null ? null : desde.atStartOfDay(zonaHoraria).toInstant();
-        List<ItemRanking> ranking = tx.execute(estado -> calcularRanking(barrio, tipo, desdeInstante));
-        List<ReclamoParaResumen> paraLlm = ranking.stream()
-                .map(i -> new ReclamoParaResumen(i.tipo(), i.descripcion()))
-                .toList();
+        List<Fila> filas = tx.execute(estado -> calcularRanking(barrio, tipo, desdeInstante));
+        List<ItemRanking> ranking = filas.stream().map(Fila::item).toList();
+        // Al LLM solo va tipo + descripcion ya anonimizada (ver anonimizar).
+        List<ReclamoParaResumen> paraLlm = filas.stream().map(Fila::paraLlm).toList();
 
         // La llamada al LLM queda fuera de la transaccion para no retener conexiones.
         String texto;
@@ -205,11 +206,25 @@ public class SvcIA implements Observador {
         return zona.toString();
     }
 
+    /** Una fila del ranking y su version anonimizada para el LLM. */
+    private record Fila(ItemRanking item, ReclamoParaResumen paraLlm) {
+    }
+
+    /**
+     * Paso de privacidad previo al LLM: quita de la descripcion el nombre y el
+     * contacto del vecino que reclamo, y emails, DNI y telefonos que aparezcan.
+     */
+    static ReclamoParaResumen anonimizar(Reclamo reclamo) {
+        String descripcion = Anonimizador.anonimizar(reclamo.getDescripcion(),
+                reclamo.getCiudadano().getNombre(), reclamo.getCiudadano().getContacto());
+        return new ReclamoParaResumen(reclamo.getTipo(), descripcion);
+    }
+
     /**
      * Los similares se cuentan sobre todos los activos del barrio: el score de un
      * reclamo no cambia segun el filtro con que se lo mire.
      */
-    private List<ItemRanking> calcularRanking(Barrio barrio, TipoDeReclamo tipo, Instant desde) {
+    private List<Fila> calcularRanking(Barrio barrio, TipoDeReclamo tipo, Instant desde) {
         List<Reclamo> activos = svcZonas.obtenerReclamosDeZona(barrio);
         Map<TipoDeReclamo, Long> porTipo = activos.stream()
                 .collect(Collectors.groupingBy(Reclamo::getTipo, Collectors.counting()));
@@ -222,13 +237,14 @@ public class SvcIA implements Observador {
                     long similares = porTipo.get(r.getTipo()) - 1;
                     int score = calcularScore(r, similares);
                     repoReclamo.actualizarScore(r.getId(), score);
-                    return new ItemRanking(r.getId(), r.getTipo(), r.getDescripcion(),
+                    ItemRanking item = new ItemRanking(r.getId(), r.getTipo(), r.getDescripcion(),
                             r.getUbicacion().getDireccion(), r.getEstado(), r.isUrgente(),
                             r.calcularAntiguedad(), score);
+                    return new Fila(item, anonimizar(r));
                 })
-                .sorted(Comparator.comparingInt(ItemRanking::score).reversed()
+                .sorted(Comparator.comparing(Fila::item, Comparator.comparingInt(ItemRanking::score).reversed()
                         .thenComparing(ItemRanking::urgente, Comparator.reverseOrder())
-                        .thenComparing(ItemRanking::antiguedadHoras, Comparator.reverseOrder()))
+                        .thenComparing(ItemRanking::antiguedadHoras, Comparator.reverseOrder())))
                 .toList();
     }
 
