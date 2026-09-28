@@ -159,7 +159,7 @@ Reglas: nombres del diagrama, codigo y comentarios en espanol, README con como
 correrlo y ejemplos curl. Ante una duda de diseno, preguntar antes de inventar.
 
 ## Material en el repo
-- `docs/`: diagramas PlantUML (clases, secuencia x2, componentes, despliegue,
+- `docs/`: diagramas PlantUML (clases, secuencias de alta, resumen y asignacion/resolucion, componentes, despliegue,
   flujo de mensajes).
 - `referencia/`: esqueleto previo, DESACTUALIZADO en mensajeria. Usar solo como
   guia para dominio, factories y strategies; el diseno de este archivo manda.

@@ -1,0 +1,71 @@
+@startuml
+title Proceso de negocio: asignacion -> trabajo -> resolucion (continua 02_secuencia_reclamo_creado)
+
+actor "Operador municipal" as Operador
+participant PanelMunicipal as Panel
+participant "REST_Reclamos" as REST
+participant "Svc_Reclamos\n<<Facade>>" as Svc
+participant "Broker\n<<Sujeto>>" as Broker
+participant "Consumidor_Eventos\n(cuadrillas.eventos)" as ConsCuad
+participant "Svc_Cuadrillas\n<<Observer>>" as Cuadrillas
+participant "Repo_Cuadrilla" as RepoCuad
+participant "Repo_Reclamo" as Repo
+participant "Consumidor_Eventos\n(ia.eventos)" as ConsIA
+participant "Svc_IA\n<<Observer>>" as IA
+
+== Asignacion automatica (tras la validacion de 02) ==
+
+Broker -> ConsCuad : ReclamoValidado
+ConsCuad -> Cuadrillas : actualizar(ReclamoValidado)
+Cuadrillas -> RepoCuad : buscarDisponibles(especialidad)\n(bloquea la fila)
+
+alt hay una cuadrilla libre de la especialidad
+    RepoCuad --> Cuadrillas : cuadrilla
+    Cuadrillas -> Cuadrillas : cuadrilla.marcarOcupada()\nreclamo.asignarCuadrilla(cuadrilla)
+    note right of Cuadrillas : estado NUEVO -> ASIGNADO
+    Cuadrillas -> Broker : publicar(ReclamoAsignado)
+    Broker -> ConsIA : ReclamoAsignado
+    ConsIA -> IA : actualizar(ReclamoAsignado)
+    note right of IA : invalida la cache\nde esa zona
+else no hay cuadrillas libres
+    RepoCuad --> Cuadrillas : ninguna
+    note right of Cuadrillas : el reclamo queda NUEVO,\npendiente de asignacion
+end
+
+== Trabajo en curso ==
+
+Operador -> Panel : marcar en proceso
+Panel -> REST : PUT /reclamos/{id}/estado (EN_PROCESO)
+REST -> Svc : cambiarEstado(id, EN_PROCESO)
+Svc -> Repo : buscarPorId(id)
+Repo --> Svc : reclamo
+Svc -> Svc : reclamo.cambiarEstado(EN_PROCESO)
+Svc --> REST : reclamo
+REST --> Panel : 200 OK
+
+== Resolucion ==
+
+Operador -> Panel : marcar resuelto
+Panel -> REST : PUT /reclamos/{id}/estado (RESUELTO)
+REST -> Svc : cambiarEstado(id, RESUELTO)
+Svc -> Svc : reclamo.cambiarEstado(RESUELTO)
+Svc -> Broker : publicar(ReclamoResuelto)\n(se envia despues del commit)
+Svc --> REST : reclamo
+REST --> Panel : 200 OK
+
+par cola cuadrillas.eventos
+    Broker -> ConsCuad : ReclamoResuelto
+    ConsCuad -> Cuadrillas : actualizar(ReclamoResuelto)
+    Cuadrillas -> Cuadrillas : cuadrilla.marcarDisponible()
+    Cuadrillas -> Repo : reclamo pendiente mas antiguo\nde esa especialidad
+    opt hay un reclamo pendiente
+        Repo --> Cuadrillas : pendiente
+        Cuadrillas -> Cuadrillas : asignar(pendiente)
+        Cuadrillas -> Broker : publicar(ReclamoAsignado)
+    end
+else cola ia.eventos
+    Broker -> ConsIA : ReclamoResuelto
+    ConsIA -> IA : actualizar(ReclamoResuelto)
+    note right of IA : invalida la cache;\nel reclamo sale del ranking
+end
+@enduml
