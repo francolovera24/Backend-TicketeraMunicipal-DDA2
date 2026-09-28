@@ -49,14 +49,15 @@ else barrio valido
 
         Svc -> LLM : generarTexto(barrio, reclamosAnonimizados)
 
-        alt LLM responde OK
+        alt LLM responde OK (timeout de lectura 20 s)
             LLM --> Svc : textoResumen
-        else LLM falla
-            note right of Svc : Resiliencia: se muestra\nsolo el ranking calculado
+            Svc -> Cache : set("barrio|tipo|desde", resumen, 5 min)
+        else LLM falla (error, 503 o timeout)
+            note right of Svc : Resiliencia: se muestra solo\nel ranking calculado (generadoPorIa=false)
             Svc -> Svc : usar texto de fallback
+            Svc -> Cache : set("barrio|tipo|desde", resumen, 30 s)
+            note right of Cache : TTL corto: el proximo pedido\nreintenta el LLM enseguida
         end
-
-        Svc -> Cache : set("barrio|tipo|desde", resumen, ttl)
     end
 
     Svc --> REST : ResumenDeZona
