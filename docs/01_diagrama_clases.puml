@@ -5,28 +5,31 @@ title Ticketera Municipal - diagrama de clases (monolito modular, base de datos 
 ' ==================== ENTIDADES DE DOMINIO ====================
 
 class Ciudadano {
-    -id : String
+    -id : UUID
     -nombre : String
     -contacto : String
     -historialReclamos : List<Reclamo>
     +agregarReclamoAlHistorial(reclamo) : void
+    +actualizarContacto(nuevoContacto) : void
 }
 
 class Reclamo {
-    -id : String
+    -id : UUID
     -descripcion : String
     -tipo : TipoDeReclamo
     -ubicacion : Ubicacion
     -estado : Estado
-    -fechaCreacion : Date
-    -fechaActualizacion : Date
+    -fechaCreacion : Instant
+    -fechaActualizacion : Instant
     -scoreCriticidad : int
     -urgente : boolean
     -reclamoOriginal : Reclamo
     +cambiarEstado(nuevoEstado) : void
     +marcarUrgente() : void
+    +asignarCuadrilla(cuadrilla) : void
     +marcarDuplicadoDe(original) : void
-    +calcularAntiguedad() : int
+    +calcularAntiguedad() : long
+    +estaActivo() : boolean
 }
 
 enum Estado {
@@ -39,23 +42,37 @@ enum Estado {
     DUPLICADO
 }
 
+note right of Estado
+  NUEVO -> EN_ANALISIS | ASIGNADO | RECHAZADO | DUPLICADO
+  EN_ANALISIS -> ASIGNADO | RECHAZADO
+  ASIGNADO -> EN_PROCESO | RESUELTO
+  EN_PROCESO -> RESUELTO
+  RESUELTO, RECHAZADO y DUPLICADO son finales.
+  DUPLICADO solo via marcarDuplicadoDe().
+end note
+
 class Barrio {
-    -id : String
+    -id : UUID
     -nombre : String
+    -nombreNormalizado : String
 }
 
 class Cuadrilla {
-    -id : String
-    -especialidad : String
+    -id : UUID
+    -nombre : String
+    -especialidad : TipoDeReclamo
     -disponible : boolean
     +marcarDisponible() : void
     +marcarOcupada() : void
 }
 
-class TipoDeReclamo {
-    -id : String
-    -nombre : String
-    -pesoRiesgo : int
+enum TipoDeReclamo {
+    CABLEADO (pesoRiesgo 10)
+    BACHEO (pesoRiesgo 5)
+    ALUMBRADO (pesoRiesgo 6)
+    ARBOLADO (pesoRiesgo 2)
+    RUIDOS_MOLESTOS (pesoRiesgo 3)
+    +getPesoRiesgo() : int
 }
 
 class ResumenDeZona <<Value Object>> {
@@ -171,7 +188,7 @@ class PanelMunicipal {
     -restClient : RestClient
     +gestionarReclamos() : void
     +asignarCuadrilla(idReclamo, idCuadrilla) : void
-    +verResumenIA(filtros) : ResumenZona
+    +verResumenIA(filtros) : ResumenDeZona
 }
 
 ' ==================== CAPA SERVICIOS (monolito modular: modulos de un unico despliegue) ====================
@@ -450,7 +467,8 @@ end note
 
 Ciudadano "1" --> "N" Reclamo : reporta
 Barrio "1" --> "N" Reclamo : agrupa
-Cuadrilla "1" --> "N" Reclamo : atiende
+Cuadrilla "0..1" --> "N" Reclamo : atiende
+Cuadrilla --> TipoDeReclamo : especialidad
 Reclamo "N" --> "1" TipoDeReclamo : es de tipo
 Reclamo "N" --> "1" Estado : esta en
 Reclamo "N" --> "0..1" Reclamo : duplicado de
