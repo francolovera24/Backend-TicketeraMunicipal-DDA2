@@ -1,0 +1,79 @@
+@startuml FlujoMensajes
+' Flujo de mensajes RabbitMQ tal como lo implementan RabbitMQConfig,
+' ConsumidorEventos, Broker y application.yml (spring.rabbitmq.listener).
+left to right direction
+skinparam componentStyle rectangle
+skinparam defaultFontSize 11
+skinparam nodesep 25
+skinparam ranksep 40
+
+package "Aplicacion (monolito modular)" {
+    [SvcReclamos\n<<Facade>>] as SvcReclamos
+    [SvcIA\n<<Observador>>] as SvcIA
+    [SvcCuadrillas\n<<Observador>>] as SvcCuadrillas
+    [Broker\n<<Sujeto>>] as Broker
+    [ConsumidorEventos\nlistener "consumidor-cuadrillas"] as LCuadrillas
+    [ConsumidorEventos\nlistener "consumidor-ia"] as LIa
+}
+
+node "RabbitMQ" {
+    component "ticketera.eventos\n<<exchange topic, durable>>" as EX
+    queue "cuadrillas.eventos\n<<durable>>\nx-dead-letter-exchange=\nticketera.eventos.dlx" as QC
+    queue "ia.eventos\n<<durable>>\nx-dead-letter-exchange=\nticketera.eventos.dlx" as QI
+    component "ticketera.eventos.dlx\n<<exchange fanout, durable>>" as DLX
+    queue "ticketera.eventos.dlq\n<<durable>>" as DLQ
+}
+
+database "PostgreSQL\ntabla evento_procesado\nPK (event_id, consumidor)" as EP
+
+' ---------- publicacion ----------
+SvcReclamos --> Broker : reclamo.creado (POST /reclamos)\nreclamo.asignado (PUT estado=ASIGNADO)\nreclamo.resuelto (PUT estado=RESUELTO)
+SvcIA --> Broker : reclamo.validado (no es duplicado)\nzona.resumen (resumen regenerado)
+SvcCuadrillas --> Broker : reclamo.asignado (asignacion de cuadrilla)
+Broker --> EX : publica despues del commit,\nmensaje persistente,\npublisher confirms
+
+' ---------- bindings ----------
+EX --> QC : reclamo.validado
+EX --> QC : reclamo.resuelto
+EX --> QI : reclamo.#
+
+' ---------- consumo ----------
+QC --> LCuadrillas
+QI --> LIa
+LCuadrillas --> SvcCuadrillas : actualizar(evento)
+LIa --> SvcIA : actualizar(evento)
+LCuadrillas ..> EP : INSERT ... ON CONFLICT DO NOTHING\n(duplicado -> se descarta)
+LIa ..> EP
+
+' ---------- errores ----------
+QC ..> DLX : rechazo sin reencolar
+QI ..> DLX : rechazo sin reencolar
+DLX --> DLQ
+
+note bottom of EX
+  zona.resumen no tiene binding: RabbitMQ lo descarta.
+  (No se bindea a ia.eventos para evitar un ciclo de
+  invalidacion de la cache.)
+end note
+
+note bottom of LIa
+  ACK automatico del contenedor recien cuando
+  el listener termina sin error.
+  Si falla: 3 intentos en total, con esperas de
+  1 s y 2 s (x2, maximo 5 s). Agotados, el mensaje
+  se rechaza sin reencolar y va a la DLX -> DLQ.
+  Un mensaje que no es un Evento valido termina
+  igual en la DLQ.
+  Los listeners arrancan detenidos:
+  Broker.suscribir(observador) los inicia.
+end note
+
+legend right
+  | routing key | publica | colas que lo reciben |
+  | reclamo.creado | SvcReclamos | ia.eventos |
+  | reclamo.validado | SvcIA | cuadrillas.eventos, ia.eventos |
+  | reclamo.asignado | SvcCuadrillas, SvcReclamos | ia.eventos |
+  | reclamo.resuelto | SvcReclamos | cuadrillas.eventos, ia.eventos |
+  | zona.resumen | SvcIA | (ninguna) |
+endlegend
+@enduml
