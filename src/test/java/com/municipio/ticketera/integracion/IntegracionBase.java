@@ -9,9 +9,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpRequest;
+import org.springframework.http.client.ClientHttpRequestExecution;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -55,6 +63,53 @@ abstract class IntegracionBase {
 
     @Autowired
     protected TestRestTemplate http;
+
+    @LocalServerPort
+    private int puerto;
+
+    /** Token de un ADMIN de prueba, compartido por todas las clases (mismo secreto y misma base). */
+    private static String tokenAdmin;
+
+    /**
+     * Los tests de negocio actuan como el Panel Municipal: cada request lleva el
+     * token de ADMIN, salvo que ya traiga su propio header Authorization.
+     */
+    @BeforeEach
+    void autenticarComoAdmin() {
+        if (tokenAdmin == null) {
+            tokenAdmin = obtenerToken("admin-tests-" + UUID.randomUUID() + "@admin.com");
+        }
+        List<ClientHttpRequestInterceptor> interceptores = http.getRestTemplate().getInterceptors();
+        if (interceptores.stream().noneMatch(TokenAdmin.class::isInstance)) {
+            interceptores.add(new TokenAdmin());
+        }
+    }
+
+    private static final class TokenAdmin implements ClientHttpRequestInterceptor {
+        @Override
+        public ClientHttpResponse intercept(HttpRequest request, byte[] cuerpo, ClientHttpRequestExecution ejecucion)
+                throws java.io.IOException {
+            if (!request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION) && tokenAdmin != null) {
+                request.getHeaders().setBearerAuth(tokenAdmin);
+            }
+            return ejecucion.execute(request, cuerpo);
+        }
+    }
+
+    /** Registra (si hace falta) y loguea al usuario; devuelve su JWT. */
+    protected String obtenerToken(String email) {
+        TestRestTemplate anonimo = sinToken();
+        anonimo.postForEntity("/auth/registro", Map.of("email", email, "password", "clave-de-tests-123"), Map.class);
+        ResponseEntity<Map> login = anonimo.postForEntity("/auth/login",
+                Map.of("email", email, "password", "clave-de-tests-123"), Map.class);
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return (String) login.getBody().get("token");
+    }
+
+    /** Cliente sin el token de ADMIN (anonimo, o con el header que se le pase). */
+    protected TestRestTemplate sinToken() {
+        return new TestRestTemplate(new RestTemplateBuilder().rootUri("http://localhost:" + puerto));
+    }
 
     protected String crearCiudadano() {
         Map<String, Object> cuerpo = Map.of("nombre", "Vecino de prueba", "contacto", UUID.randomUUID() + "@test.com");

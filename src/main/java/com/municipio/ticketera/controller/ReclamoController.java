@@ -1,5 +1,7 @@
 package com.municipio.ticketera.controller;
 
+import com.municipio.ticketera.config.OpenApiConfig;
+import com.municipio.ticketera.config.SeguridadConfig;
 import com.municipio.ticketera.domain.Reclamo;
 import com.municipio.ticketera.domain.Ubicacion;
 import com.municipio.ticketera.dto.AsignarCuadrillaRequest;
@@ -11,12 +13,14 @@ import com.municipio.ticketera.service.SvcReclamos;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -58,6 +62,10 @@ public class ReclamoController {
         return ResponseEntity.created(ubicacion).body(ReclamoResponse.desde(reclamo));
     }
 
+    @PreAuthorize(SeguridadConfig.SOLO_ADMIN)
+    @SecurityRequirement(name = OpenApiConfig.BEARER)
+    @ApiResponse(responseCode = "401", description = "Falta el token o es invalido")
+    @ApiResponse(responseCode = "403", description = "El token no tiene rol ADMIN")
     @GetMapping
     @Operation(summary = "Consultar reclamos", description = "Todos, o solo los de un barrio.")
     public List<ReclamoResponse> consultarReclamos(
@@ -73,6 +81,10 @@ public class ReclamoController {
         return ReclamoResponse.desde(svcReclamos.buscarReclamo(id));
     }
 
+    @PreAuthorize(SeguridadConfig.SOLO_ADMIN)
+    @SecurityRequirement(name = OpenApiConfig.BEARER)
+    @ApiResponse(responseCode = "401", description = "Falta el token o es invalido")
+    @ApiResponse(responseCode = "403", description = "El token no tiene rol ADMIN")
     @PutMapping("/{id}/estado")
     @Operation(summary = "Cambiar el estado de un reclamo",
             description = "ASIGNADO publica reclamo.asignado y RESUELTO publica reclamo.resuelto.")
@@ -82,6 +94,10 @@ public class ReclamoController {
         return ReclamoResponse.desde(svcReclamos.cambiarEstado(id, dto.estado()));
     }
 
+    @PreAuthorize(SeguridadConfig.SOLO_ADMIN)
+    @SecurityRequirement(name = OpenApiConfig.BEARER)
+    @ApiResponse(responseCode = "401", description = "Falta el token o es invalido")
+    @ApiResponse(responseCode = "403", description = "El token no tiene rol ADMIN")
     @PutMapping("/{id}/asignar-cuadrilla")
     @Operation(summary = "Asignar una cuadrilla a mano (Panel Municipal)",
             description = "Delega en SvcCuadrillas. Pasa el reclamo a ASIGNADO y publica reclamo.asignado.")

@@ -1,5 +1,7 @@
 package com.municipio.ticketera.controller;
 
+import com.municipio.ticketera.config.OpenApiConfig;
+import com.municipio.ticketera.config.SeguridadConfig;
 import com.municipio.ticketera.domain.Ciudadano;
 import com.municipio.ticketera.dto.CiudadanoResponse;
 import com.municipio.ticketera.dto.CrearCiudadanoRequest;
@@ -7,12 +9,14 @@ import com.municipio.ticketera.dto.ReclamoResponse;
 import com.municipio.ticketera.service.SvcCiudadanos;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -53,6 +57,10 @@ public class CiudadanoController {
         return CiudadanoResponse.desde(svcCiudadanos.consultarCiudadano(id));
     }
 
+    @PreAuthorize(SeguridadConfig.SOLO_ADMIN)
+    @SecurityRequirement(name = OpenApiConfig.BEARER)
+    @ApiResponse(responseCode = "401", description = "Falta el token o es invalido")
+    @ApiResponse(responseCode = "403", description = "El token no tiene rol ADMIN")
     @GetMapping("/{id}/reclamos")
     @Operation(summary = "Historial de reclamos de un ciudadano", description = "Del mas reciente al mas antiguo.")
     @ApiResponse(responseCode = "404", description = "Ciudadano inexistente")
