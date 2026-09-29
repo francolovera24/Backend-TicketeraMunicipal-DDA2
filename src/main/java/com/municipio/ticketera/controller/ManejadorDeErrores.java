@@ -16,6 +16,11 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -40,6 +45,36 @@ public class ManejadorDeErrores extends ResponseEntityExceptionHandler {
     @ExceptionHandler(CredencialesInvalidasException.class)
     public ResponseEntity<ProblemDetail> credencialesInvalidas(CredencialesInvalidasException e) {
         return noAutenticado(e.getMessage());
+    }
+
+    /**
+     * @PreAuthorize niega el acceso: 401 si no hay usuario autenticado (falta el
+     * token) y 403 si lo hay pero su rol no alcanza.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ProblemDetail> accesoDenegado(AccessDeniedException e) {
+        Authentication actual = SecurityContextHolder.getContext().getAuthentication();
+        if (actual == null || actual instanceof AnonymousAuthenticationToken || !actual.isAuthenticated()) {
+            log.info("api.error_cliente", "status", 401, "titulo", "No autenticado");
+            return noAutenticado(MENSAJE_SIN_TOKEN);
+        }
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problema(HttpStatus.FORBIDDEN, "Acceso denegado",
+                "Tu rol (" + rolDe(actual) + ") no permite esta operacion: requiere rol ADMIN"));
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ProblemDetail> autenticacion(AuthenticationException e) {
+        return noAutenticado(MENSAJE_SIN_TOKEN);
+    }
+
+    static final String MENSAJE_SIN_TOKEN =
+            "Falta el token. Inicia sesion en POST /auth/login y envialo en el header Authorization: Bearer <token>";
+
+    private static String rolDe(Authentication autenticacion) {
+        return autenticacion.getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .findFirst()
+                .orElse("sin rol");
     }
 
     /** 401 con el header WWW-Authenticate que pide HTTP para el esquema Bearer. */

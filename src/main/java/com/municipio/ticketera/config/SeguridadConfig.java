@@ -2,6 +2,7 @@ package com.municipio.ticketera.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -42,6 +43,12 @@ public class SeguridadConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a.anyRequest().permitAll())
+                // Negaciones fuera de los controladores: mismo formato RFC 7807 que ManejadorDeErrores.
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((req, res, ex) -> respuestaDeError.escribir(req, res,
+                                HttpStatus.UNAUTHORIZED, "No autenticado", "Falta el token o es invalido"))
+                        .accessDeniedHandler((req, res, ex) -> respuestaDeError.escribir(req, res,
+                                HttpStatus.FORBIDDEN, "Acceso denegado", "Tu rol no permite esta operacion")))
                 .addFilterBefore(new JwtAuthenticationFilter(proveedorJwt, respuestaDeError),
                         UsernamePasswordAuthenticationFilter.class)
                 .build();
