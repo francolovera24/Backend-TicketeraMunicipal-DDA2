@@ -1,4 +1,6 @@
-# Credenciales: se leen de .env (copiar .env.example a .env). No hay secretos en el repo.
+# Credenciales y claves: se leen de .env (copiar .env.example a .env).
+# No hay secretos en el repo: las variables sensibles (contrasenas, LLM_API_KEY)
+# solo llegan por entorno. Las obligatorias cortan el arranque si faltan (:?).
 services:
   app:
     build: .
@@ -21,24 +23,30 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       GEO_HABILITADO: ${GEO_HABILITADO:-true}
       GEO_CONTACTO: ${GEO_CONTACTO:-}
+      DUPLICADOS_HABILITADO: ${DUPLICADOS_HABILITADO:-true}
+      ZONA_HORARIA: ${ZONA_HORARIA:-America/Argentina/Buenos_Aires}
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - ticketera
     restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
     container_name: ticketera-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?definir POSTGRES_DB en .env}
+      POSTGRES_USER: ${POSTGRES_USER:?definir POSTGRES_USER en .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD en .env}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ticketera
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -49,13 +57,15 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: ticketera-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?definir RABBITMQ_USER en .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?definir RABBITMQ_PASSWORD en .env}
     ports:
       - "5672:5672"
       - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - ticketera
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -68,12 +78,21 @@ services:
     container_name: ticketera-redis
     ports:
       - "6379:6379"
+    networks:
+      - ticketera
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
 
+# Red propia: los servicios se encuentran por nombre (postgres, rabbitmq, redis).
+networks:
+  ticketera:
+    name: ticketera-red
+    driver: bridge
+
+# Volumenes nombrados: los datos sobreviven a "docker compose down" (no a "down -v").
 volumes:
   postgres_data:
   rabbitmq_data:

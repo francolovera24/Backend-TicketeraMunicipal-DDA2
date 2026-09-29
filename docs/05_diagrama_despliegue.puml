@@ -13,7 +13,7 @@ node "Sistema externo" as ClienteSoap {
     artifact "Cliente SOAP\n(integracion)" as artSoap
 }
 
-node "Servidor Docker Host (docker-compose)" as DockerHost {
+node "Servidor Docker Host (docker-compose, red bridge ticketera-red)" as DockerHost {
 
     node "Contenedor: app" as AppContainer {
         artifact "ticketera-backend.jar (Spring Boot)\nmonolito modular: modulos Reclamos,\nCiudadanos, Cuadrillas, IA, SOAP y\nmensajeria en un solo proceso" as artApp
@@ -44,6 +44,16 @@ note bottom of AppContainer
   Un unico despliegue. Para evolucionar a
   microservicios, el modulo de IA se separaria
   en su propio contenedor consumiendo ia.eventos.
+  Secretos (contrasenas, LLM_API_KEY) solo por
+  variables de entorno desde .env.
+end note
+
+note bottom of PgContainer
+  Volumen nombrado postgres_data
+end note
+
+note bottom of MqContainer
+  Volumen nombrado rabbitmq_data
 end note
 
 ClienteVecino --> AppContainer : HTTPS 8080\n(REST JSON)
