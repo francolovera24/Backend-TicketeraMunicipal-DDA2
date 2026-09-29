@@ -62,6 +62,10 @@ spring:
 
 ticketera:
   zona-horaria: ${ZONA_HORARIA:America/Argentina/Buenos_Aires}
+  seguridad:
+    # Valor de ejemplo SOLO para desarrollo: en cualquier otro entorno definir JWT_SECRET.
+    jwt-secret: ${JWT_SECRET:dev-solo-desarrollo-cambiar-en-produccion-0123456789}
+    jwt-expiracion: 24h
   ia:
     # stub (por defecto, sin credenciales) o llm (Gemini, requiere LLM_API_KEY)
     generador: ${IA_GENERADOR:stub}

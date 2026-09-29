@@ -2,6 +2,7 @@ package com.municipio.ticketera.controller;
 
 import com.municipio.ticketera.domain.TransicionInvalidaException;
 import com.municipio.ticketera.service.ConflictoException;
+import com.municipio.ticketera.service.CredencialesInvalidasException;
 import com.municipio.ticketera.service.RecursoNoEncontradoException;
 import com.municipio.ticketera.util.Bitacora;
 import com.municipio.ticketera.util.ValidacionException;
@@ -34,6 +35,20 @@ public class ManejadorDeErrores extends ResponseEntityExceptionHandler {
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ProblemDetail noEncontrado(RecursoNoEncontradoException e) {
         return problema(HttpStatus.NOT_FOUND, "Recurso no encontrado", e.getMessage());
+    }
+
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    public ResponseEntity<ProblemDetail> credencialesInvalidas(CredencialesInvalidasException e) {
+        return noAutenticado(e.getMessage());
+    }
+
+    /** 401 con el header WWW-Authenticate que pide HTTP para el esquema Bearer. */
+    static ResponseEntity<ProblemDetail> noAutenticado(String detalle) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, detalle);
+        problema.setTitle("No autenticado");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
+                .body(problema);
     }
 
     @ExceptionHandler(ValidacionException.class)

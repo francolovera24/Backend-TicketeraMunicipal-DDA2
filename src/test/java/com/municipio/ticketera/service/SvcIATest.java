@@ -50,7 +50,7 @@ class SvcIATest {
         when(tx.execute(any())).thenAnswer(inv -> ((TransactionCallback<Object>) inv.getArgument(0)).doInTransaction(null));
         svcIA = new SvcIA(List.of(cableado, bacheo, generico), repo, svcBarrios, cache, generador,
                 mock(DetectorDeDuplicados.class), mock(Broker.class), tx,
-                new ConfiguracionTicketera("America/Argentina/Buenos_Aires", null, null, null));
+                new ConfiguracionTicketera("America/Argentina/Buenos_Aires", null, null, null, null));
     }
 
     @Test

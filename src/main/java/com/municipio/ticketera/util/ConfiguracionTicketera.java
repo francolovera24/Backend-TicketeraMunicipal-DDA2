@@ -11,7 +11,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * reciben este objeto (o una de sus secciones) en vez de usar @Value sueltos.
  */
 @ConfigurationProperties(prefix = "ticketera")
-public record ConfiguracionTicketera(String zonaHoraria, Ia ia, Geo geo, Duplicados duplicados) {
+public record ConfiguracionTicketera(String zonaHoraria, Ia ia, Geo geo, Duplicados duplicados,
+                                     Seguridad seguridad) {
 
     /** Zona horaria del municipio, para interpretar fechas sin hora (por ejemplo el filtro "desde"). */
     public ZoneId zona() {
@@ -49,5 +50,12 @@ public record ConfiguracionTicketera(String zonaHoraria, Ia ia, Geo geo, Duplica
      * @param maxCandidatos cuantos candidatos (los mas cercanos) se comparan
      */
     public record Duplicados(boolean habilitado, int radioMetros, Duration ventana, int maxCandidatos) {
+    }
+
+    /**
+     * @param jwtSecret     clave HMAC para firmar los tokens (JWT_SECRET, al menos 32 bytes)
+     * @param jwtExpiracion vigencia de cada token
+     */
+    public record Seguridad(String jwtSecret, Duration jwtExpiracion) {
     }
 }

@@ -25,6 +25,8 @@ services:
       GEO_CONTACTO: ${GEO_CONTACTO:-}
       DUPLICADOS_HABILITADO: ${DUPLICADOS_HABILITADO:-true}
       ZONA_HORARIA: ${ZONA_HORARIA:-America/Argentina/Buenos_Aires}
+      # Clave de firma de los JWT. El default es SOLO para desarrollo (la app lo avisa en el log).
+      JWT_SECRET: ${JWT_SECRET:-dev-solo-desarrollo-cambiar-en-produccion-0123456789}
     depends_on:
       postgres:
         condition: service_healthy
