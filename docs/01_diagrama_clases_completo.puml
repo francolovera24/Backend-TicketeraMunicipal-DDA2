@@ -1,0 +1,376 @@
+@startuml 01_diagrama_clases_completo
+' Diagrama de clases completo pero resumido: una sola vista con todo el
+' sistema (solo atributos y metodos importantes). Las vistas de detalle
+' estan en 01a..01d.
+
+title Ticketera Municipal - diagrama de clases (monolito modular)
+
+hide empty members
+skinparam packageStyle rectangle
+skinparam classFontSize 12
+skinparam defaultFontSize 11
+skinparam nodesep 25
+skinparam ranksep 35
+
+' ==================== CAPA PRESENTACION ====================
+
+package "Capa Presentacion" {
+    class WebApp {
+        -sesionActual : Ciudadano
+        +crearReclamo(descripcion, ubicacion) : Reclamo
+        +consultarEstado(idReclamo) : Reclamo
+        +verHistorial() : List<Reclamo>
+    }
+
+    class PanelMunicipal <<rol ADMIN>> {
+        -usuarioLogueado : Usuario
+        -tokenJwt : String
+        +gestionarReclamos() : void
+        +asignarCuadrilla(idReclamo, idCuadrilla) : void
+        +verResumenIA(filtros) : ResumenDeZona
+    }
+}
+
+' ==================== CAPA SERVICIOS (monolito modular) ====================
+
+package "Capa Servicios (REST y SOAP)" {
+    class REST_Reclamos <<REST API>> {
+        +altaReclamo(dto) : Reclamo
+        +consultarReclamos(barrio) : List<Reclamo>
+        +consultarReclamo(id) : Reclamo
+        +cambiarEstado(id, estado) : Reclamo
+        +asignarCuadrilla(id, cuadrillaId) : Reclamo
+    }
+
+    class REST_Ciudadanos <<REST API>> {
+        +altaCiudadano(dto) : Ciudadano
+        +miCiudadano() : Ciudadano
+        +consultarCiudadano(id) : Ciudadano
+        +obtenerHistorial(id) : List<Reclamo>
+    }
+
+    class REST_Cuadrillas <<REST API>> {
+        +listarCuadrillas(especialidad, disponible) : List<Cuadrilla>
+    }
+
+    class REST_ResumenZona <<REST API>> {
+        +obtenerResumen(barrio, tipo, desde) : ResumenDeZona
+    }
+
+    class REST_Auth <<REST API>> {
+        +registrar(email, password) : Usuario
+        +login(email, password) : Token
+    }
+
+    class SOAP_Reclamos <<SOAP>> {
+        +consultarEstadoReclamo(id) : EstadoReclamo
+    }
+}
+
+' ==================== CAPA NEGOCIO ====================
+
+package "Capa Negocio" {
+    class Svc_Reclamos <<Facade>> {
+        -factories : Map<TipoDeReclamo, ReclamoFactory>
+        +registrarReclamo(tipo, descripcion, ubicacion) : Reclamo
+        +cambiarEstado(id, estado) : Reclamo
+        +consultarReclamos(barrio) : List<Reclamo>
+    }
+
+    class Svc_Barrios {
+        +resolverBarrio(nombre) : Barrio
+        +obtenerReclamosActivos(barrio) : List<Reclamo>
+    }
+
+    class Svc_Ciudadanos {
+        +registrarCiudadano(nombre, contacto, usuarioId) : Ciudadano
+        +obtenerHistorialReclamos(id) : List<Reclamo>
+    }
+
+    class Svc_Cuadrillas <<Observer>> {
+        +actualizar(evento) : void
+        +asignar(reclamo) : boolean
+        +asignarCuadrilla(reclamoId, cuadrillaId) : Reclamo
+    }
+
+    class Svc_IA <<Strategy Context, Observer>> {
+        -estrategias : List<CriticidadStrategy>
+        +calcularScore(reclamo, similaresEnBarrio) : int
+        +generarResumen(barrio, tipo, desde) : ResumenDeZona
+        +validarReclamo(reclamo) : void
+        +actualizar(evento) : void
+    }
+
+    class DetectorDeDuplicados {
+        -radioMetros : int
+        -ventanaDias : int
+        +buscarOriginal(reclamo) : Reclamo
+    }
+
+    class Svc_Auth {
+        +registrar(email, password) : Usuario
+        +login(email, password) : TokenEmitido
+        -rolPara(email) : Rol
+    }
+}
+
+' ==================== PATRONES ====================
+
+package "Patrones" {
+    abstract class ReclamoFactory <<Factory Method>> {
+        +crear(descripcion, ubicacion, barrio, ciudadano) : Reclamo
+        #{abstract} construir(...) : Reclamo
+    }
+    class "Cableado / Bacheo / Alumbrado /\nArbolado / RuidosReclamoFactory" as FabricasConcretas
+
+    interface CriticidadStrategy <<Strategy>> {
+        +calcularScore(reclamo, similaresEnBarrio) : int
+        +aplicaA(tipo) : boolean
+    }
+    class "ScoreCableado / ScoreBacheo /\nScoreGenerico" as EstrategiasConcretas
+
+    interface Sujeto {
+        +suscribir(observador) : void
+        +desuscribir(observador) : void
+        +notificar(evento) : void
+    }
+
+    interface Observador {
+        +actualizar(evento) : void
+    }
+}
+
+' ==================== CAPA MENSAJERIA (Event-Driven) ====================
+
+package "Capa Mensajeria (RabbitMQ)" {
+    class Broker <<Sujeto>> {
+        +publicar(evento) : void
+    }
+
+    class Consumidor_Eventos <<RabbitListener>> {
+        +recibir(evento) : void
+    }
+
+    class Evento {
+        -eventId : UUID
+        -tipo : TipoEvento
+        -version : int
+        -correlationId : String
+        -reclamoId : UUID
+        -barrio : String
+    }
+}
+
+' ==================== ENTIDADES DE DOMINIO ====================
+
+package "Dominio" {
+    class Reclamo {
+        -id : UUID
+        -descripcion : String
+        -tipo : TipoDeReclamo
+        -ubicacion : Ubicacion
+        -estado : Estado
+        -scoreCriticidad : int
+        -urgente : boolean
+        -reclamoOriginal : Reclamo
+        +cambiarEstado(nuevoEstado) : void
+        +asignarCuadrilla(cuadrilla) : void
+        +marcarDuplicadoDe(original) : void
+        +calcularAntiguedad() : long
+    }
+
+    class Ciudadano {
+        -id : UUID
+        -nombre : String
+        -contacto : String
+        -usuario : Usuario
+        +agregarReclamoAlHistorial(reclamo) : void
+    }
+
+    class Cuadrilla {
+        -id : UUID
+        -especialidad : TipoDeReclamo
+        -disponible : boolean
+        +marcarDisponible() : void
+        +marcarOcupada() : void
+    }
+
+    class Barrio {
+        -id : UUID
+        -nombre : String
+    }
+
+    class Usuario {
+        -id : UUID
+        -email : String
+        -passwordHash : String
+        -rol : Rol
+    }
+
+    class Ubicacion <<Value Object>> {
+        -direccion : String
+        -coordenadas : Coordenadas
+    }
+
+    class ResumenDeZona <<Value Object>> {
+        -barrio : String
+        -textoResumen : String
+        -generadoPorIa : boolean
+        -ranking : List<ItemRanking>
+    }
+
+    enum Estado {
+        NUEVO
+        EN_ANALISIS
+        ASIGNADO
+        EN_PROCESO
+        RESUELTO
+        RECHAZADO
+        DUPLICADO
+    }
+
+    enum TipoDeReclamo {
+        CABLEADO
+        BACHEO
+        ALUMBRADO
+        ARBOLADO
+        RUIDOS_MOLESTOS
+        -pesoRiesgo : int
+    }
+
+    enum Rol {
+        VECINO
+        ADMIN
+    }
+}
+
+' ==================== CAPA DATOS ====================
+
+package "Capa Datos" {
+    class Repo_Reclamo {
+        +guardar(reclamo) : void
+        +filtrar(criterios) : List<Reclamo>
+        +buscarCandidatosDuplicado(tipo, desde) : List<Reclamo>
+    }
+    class Repo_Barrio
+    class Repo_Cuadrilla {
+        +buscarDisponibles(especialidad) : List<Cuadrilla>
+    }
+    class Repo_Ciudadano
+    class Repo_Usuario {
+        +buscarPorEmail(email) : Usuario
+    }
+    class Cache_Resumenes {
+        -ttl : 5 min (fallback 30 s)
+        +get(clave) : ResumenDeZona
+        +set(clave, valor, ttl) : void
+    }
+}
+
+' ==================== SERVICIOS EXTERNOS ====================
+
+package "Servicios Externos" {
+    class API_Geo <<Nominatim>> {
+        +geocodificar(direccion) : Coordenadas
+    }
+    class API_LLM <<Gemini>> {
+        +generarTexto(prompt) : String
+    }
+}
+
+' ==================== NOTAS ====================
+
+note right of Broker
+  publicar() envia al exchange topic
+  ticketera.eventos. La entrega la hace
+  Consumidor_Eventos (ACK tras procesar,
+  3 reintentos, DLQ, idempotencia).
+end note
+
+note bottom of DetectorDeDuplicados
+  Reglas (tipo, cercania, 30 dias) y,
+  si hay candidatos, decide el LLM.
+end note
+
+note right of Svc_Auth
+  @admin.com -> ADMIN, si no VECINO.
+  Password BCrypt; login devuelve JWT.
+end note
+
+' ==================== RELACIONES DE DOMINIO ====================
+
+Ciudadano "1" --> "N" Reclamo : reporta
+Barrio "1" --> "N" Reclamo : agrupa
+Cuadrilla "0..1" --> "N" Reclamo : atiende
+Reclamo --> TipoDeReclamo
+Reclamo --> Estado
+Reclamo *-- Ubicacion
+Reclamo "N" --> "0..1" Reclamo : duplicado de
+Ciudadano "0..1" --> "0..1" Usuario : cuenta
+Usuario --> Rol
+ResumenDeZona "1" --> "N" Reclamo : ordena
+
+' ==================== RELACIONES DE PATRONES ====================
+
+ReclamoFactory <|-- FabricasConcretas
+CriticidadStrategy <|.. EstrategiasConcretas
+Sujeto <|.. Broker
+Observador <|.. Svc_Cuadrillas
+Observador <|.. Svc_IA
+Svc_IA o--> CriticidadStrategy : elige por tipo
+
+' ==================== RELACIONES DE ARQUITECTURA ====================
+
+WebApp ..> REST_Reclamos : usa
+WebApp ..> REST_Ciudadanos : usa
+PanelMunicipal ..> REST_Auth : login
+PanelMunicipal ..> REST_Reclamos : usa
+PanelMunicipal ..> REST_Cuadrillas : usa
+PanelMunicipal ..> REST_ResumenZona : usa
+
+REST_Reclamos ..> Svc_Reclamos : delega
+REST_Reclamos ..> Svc_Cuadrillas : asignar-cuadrilla
+REST_Ciudadanos ..> Svc_Ciudadanos : delega
+REST_Cuadrillas ..> Svc_Cuadrillas : delega
+REST_ResumenZona ..> Svc_IA : delega
+REST_Auth ..> Svc_Auth : delega
+SOAP_Reclamos ..> Svc_Reclamos : delega
+
+Svc_Reclamos --> ReclamoFactory : elige por tipo
+Svc_Reclamos ..> Svc_Barrios : usa
+Svc_IA --> DetectorDeDuplicados : usa
+Svc_IA --> Cache_Resumenes : usa
+
+Svc_Reclamos --> Repo_Reclamo
+Svc_Barrios --> Repo_Barrio
+Svc_Ciudadanos --> Repo_Ciudadano
+Svc_Cuadrillas --> Repo_Cuadrilla
+Svc_IA --> Repo_Reclamo
+Svc_Auth --> Repo_Usuario
+
+Svc_Reclamos ..> API_Geo : consulta
+Svc_IA ..> API_LLM : resumen
+DetectorDeDuplicados ..> API_LLM : compara
+
+' ==================== RELACIONES DE MENSAJERIA ====================
+
+Svc_Reclamos ..> Broker : reclamo.creado
+Svc_IA ..> Broker : reclamo.validado
+Svc_Cuadrillas ..> Broker : reclamo.asignado
+Broker ..> Evento : publica
+Broker ..> Consumidor_Eventos : via cola
+Consumidor_Eventos --> Observador : actualizar(evento)
+
+' ==================== RELACIONES ENTRE ARQUITECTURA Y DOMINIO ====================
+
+ReclamoFactory ..> Reclamo : instancia
+Repo_Reclamo ..> Reclamo : persiste
+Svc_IA ..> ResumenDeZona : genera
+
+' ==================== ORDEN VISUAL (enlaces invisibles) ====================
+
+Repo_Reclamo -[hidden]down- Reclamo
+Repo_Usuario -[hidden]down- Ciudadano
+API_Geo -[hidden]down- Cuadrilla
+Evento -[hidden]right- ReclamoFactory
+@enduml
