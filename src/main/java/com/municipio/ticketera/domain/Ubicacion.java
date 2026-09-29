@@ -1,11 +1,14 @@
 package com.municipio.ticketera.domain;
 
+import com.municipio.ticketera.util.Validador;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
+import jakarta.persistence.Embedded;
 import java.util.Objects;
 
 /**
- * Value Object: direccion y coordenadas opcionales. Inmutable, se compara por valor.
+ * Value Object: direccion y, opcionalmente, sus {@link Coordenadas}. Inmutable,
+ * se compara por valor. En la tabla ocupa las columnas direccion, lat y lon.
  */
 @Embeddable
 public class Ubicacion {
@@ -13,40 +16,51 @@ public class Ubicacion {
     @Column(name = "direccion", nullable = false, length = 255)
     private String direccion;
 
-    @Column(name = "lat")
-    private Double lat;
-
-    @Column(name = "lon")
-    private Double lon;
+    /** Null si no se conocen (Hibernate lo deja null cuando lat y lon son null). */
+    @Embedded
+    private Coordenadas coordenadas;
 
     protected Ubicacion() {
         // requerido por JPA
     }
 
-    public Ubicacion(String direccion, Double lat, Double lon) {
+    public Ubicacion(String direccion, Coordenadas coordenadas) {
         this.direccion = direccion;
-        this.lat = lat;
-        this.lon = lon;
+        this.coordenadas = coordenadas;
+    }
+
+    /** Latitud y longitud van juntas: ambas o ninguna. */
+    public Ubicacion(String direccion, Double lat, Double lon) {
+        this(direccion, coordenadasDe(lat, lon));
+    }
+
+    private static Coordenadas coordenadasDe(Double lat, Double lon) {
+        Validador.coordenadas(lat, lon);
+        return lat == null ? null : new Coordenadas(lat, lon);
     }
 
     public String getDireccion() {
         return direccion;
     }
 
-    public Double getLat() {
-        return lat;
-    }
-
-    public Double getLon() {
-        return lon;
+    public Coordenadas getCoordenadas() {
+        return coordenadas;
     }
 
     public boolean tieneCoordenadas() {
-        return lat != null && lon != null;
+        return coordenadas != null;
     }
 
-    public Ubicacion conCoordenadas(double nuevaLat, double nuevaLon) {
-        return new Ubicacion(direccion, nuevaLat, nuevaLon);
+    public Double getLat() {
+        return coordenadas == null ? null : coordenadas.lat();
+    }
+
+    public Double getLon() {
+        return coordenadas == null ? null : coordenadas.lon();
+    }
+
+    public Ubicacion conCoordenadas(Coordenadas nuevas) {
+        return new Ubicacion(direccion, nuevas);
     }
 
     @Override
@@ -57,13 +71,11 @@ public class Ubicacion {
         if (!(o instanceof Ubicacion otra)) {
             return false;
         }
-        return Objects.equals(direccion, otra.direccion)
-                && Objects.equals(lat, otra.lat)
-                && Objects.equals(lon, otra.lon);
+        return Objects.equals(direccion, otra.direccion) && Objects.equals(coordenadas, otra.coordenadas);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(direccion, lat, lon);
+        return Objects.hash(direccion, coordenadas);
     }
 }

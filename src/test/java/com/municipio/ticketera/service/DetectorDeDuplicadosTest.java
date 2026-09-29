@@ -47,8 +47,8 @@ class DetectorDeDuplicadosTest {
 
     @Test
     void haversine() {
-        assertThat(DetectorDeDuplicados.distanciaMetros(AQUI, A_20_METROS)).isCloseTo(20, within(3.0));
-        assertThat(DetectorDeDuplicados.distanciaMetros(AQUI, A_1_KM)).isCloseTo(1000, within(20.0));
+        assertThat(AQUI.getCoordenadas().distanciaMetros(A_20_METROS.getCoordenadas())).isCloseTo(20, within(3.0));
+        assertThat(AQUI.getCoordenadas().distanciaMetros(A_1_KM.getCoordenadas())).isCloseTo(1000, within(20.0));
     }
 
     @Test

@@ -69,16 +69,15 @@ class ReclamoFactoryTest {
     }
 
     @Test
-    void rechazaUnaSolaCoordenada() {
-        Ubicacion soloLatitud = new Ubicacion("Calle 1", -34.5, null);
-        assertThatThrownBy(() -> new BacheoReclamoFactory().crear("Pozo", soloLatitud, barrio, ciudadano))
+    void unaSolaCoordenadaNiSiquieraFormaUnaUbicacion() {
+        // Desde que Ubicacion usa Coordenadas, no se puede construir una ubicacion invalida.
+        assertThatThrownBy(() -> new Ubicacion("Calle 1", -34.5, null))
                 .isInstanceOf(ValidacionException.class);
     }
 
     @Test
-    void rechazaCoordenadasFueraDeRango() {
-        Ubicacion fueraDeRango = new Ubicacion("Calle 1", -95.0, -58.0);
-        assertThatThrownBy(() -> new BacheoReclamoFactory().crear("Pozo", fueraDeRango, barrio, ciudadano))
+    void coordenadasFueraDeRangoNoFormanUnaUbicacion() {
+        assertThatThrownBy(() -> new Ubicacion("Calle 1", -95.0, -58.0))
                 .isInstanceOf(ValidacionException.class)
                 .hasMessageContaining("rango");
     }

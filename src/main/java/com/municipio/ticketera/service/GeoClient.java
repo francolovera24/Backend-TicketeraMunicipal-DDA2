@@ -3,6 +3,7 @@ package com.municipio.ticketera.service;
 import com.municipio.ticketera.util.Bitacora;
 import com.municipio.ticketera.util.ConfiguracionTicketera;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.municipio.ticketera.domain.Coordenadas;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -24,7 +25,8 @@ import org.springframework.web.util.UriBuilder;
 @Component
 public class GeoClient {
 
-    public record ResultadoGeo(double lat, double lon, String barrio) {
+    /** Coordenadas del punto y barrio (null si Nominatim no lo informa). */
+    public record ResultadoGeo(Coordenadas coordenadas, String barrio) {
     }
 
     private static final Bitacora log = Bitacora.de(GeoClient.class);
@@ -122,6 +124,7 @@ public class GeoClient {
                 break;
             }
         }
-        return Optional.of(new ResultadoGeo(primero.path("lat").asDouble(), primero.path("lon").asDouble(), barrio));
+        Coordenadas punto = new Coordenadas(primero.path("lat").asDouble(), primero.path("lon").asDouble());
+        return Optional.of(new ResultadoGeo(punto, barrio));
     }
 }

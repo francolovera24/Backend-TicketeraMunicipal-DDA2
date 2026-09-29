@@ -32,6 +32,26 @@ class Reclamo {
     +estaActivo() : boolean
 }
 
+class Ubicacion <<Value Object>> {
+    -direccion : String
+    -coordenadas : Coordenadas
+    +tieneCoordenadas() : boolean
+    +conCoordenadas(coordenadas) : Ubicacion
+}
+
+class Coordenadas <<Value Object, record>> {
+    -lat : double
+    -lon : double
+    +distanciaMetros(otra) : double
+}
+
+note right of Coordenadas
+  Siempre validas: lat en [-90, 90] y lon en
+  [-180, 180] (Validador). Latitud y longitud
+  van juntas: una Ubicacion tiene ambas o ninguna.
+  Se persisten en las columnas lat y lon de reclamo.
+end note
+
 enum Estado {
     NUEVO
     EN_ANALISIS
@@ -423,7 +443,7 @@ end note
 
 class API_Geo <<API externa>> {
     -baseUrl : String
-    +geocodificar(direccion) : Coordenadas
+    +geocodificar(direccion) : ResultadoGeo(Coordenadas, barrio)
 }
 
 class API_LLM <<API externa>> {
@@ -474,6 +494,10 @@ Cuadrilla "0..1" --> "N" Reclamo : atiende
 Cuadrilla --> TipoDeReclamo : especialidad
 Reclamo "N" --> "1" TipoDeReclamo : es de tipo
 Reclamo "N" --> "1" Estado : esta en
+Reclamo *-- "1" Ubicacion
+Ubicacion *-- "0..1" Coordenadas
+API_Geo ..> Coordenadas : devuelve
+DetectorDeDuplicados ..> Coordenadas : distanciaMetros
 Reclamo "N" --> "0..1" Reclamo : duplicado de
 ResumenDeZona "1" --> "N" Reclamo : ordena
 

@@ -83,7 +83,9 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
 | API_Geo / API_LLM | GeoClient / LlmClient (implementa GeneradorDeResumen) |
 
 ## Dominio
-- Reclamo: id, descripcion, tipo, ubicacion (value object: direccion, lat, lon),
+- Reclamo: id, descripcion, tipo, ubicacion (value object `Ubicacion`: direccion +
+  `Coordenadas` opcionales; `Coordenadas` es un record lat/lon siempre valido
+  que sabe calcular la distancia a otro punto),
   barrio, ciudadano, estado, fechas, scoreCriticidad, urgente.
   Metodos: cambiarEstado, marcarUrgente, calcularAntiguedad (horas).
 - Estado: NUEVO, EN_ANALISIS, ASIGNADO, EN_PROCESO, RESUELTO, RECHAZADO, DUPLICADO.

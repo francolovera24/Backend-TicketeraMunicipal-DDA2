@@ -2,7 +2,6 @@ package com.municipio.ticketera.service;
 
 import com.municipio.ticketera.domain.Estado;
 import com.municipio.ticketera.domain.Reclamo;
-import com.municipio.ticketera.domain.Ubicacion;
 import com.municipio.ticketera.repository.ReclamoRepository;
 import com.municipio.ticketera.service.ComparadorDeReclamos.ReclamoParaComparar;
 import com.municipio.ticketera.util.Anonimizador;
@@ -31,7 +30,6 @@ import org.springframework.stereotype.Component;
 public class DetectorDeDuplicados {
 
     private static final Bitacora log = Bitacora.de(DetectorDeDuplicados.class);
-    private static final double RADIO_TIERRA_METROS = 6_371_000;
 
     private final ReclamoRepository repo;
     private final ComparadorDeReclamos comparador;
@@ -88,25 +86,16 @@ public class DetectorDeDuplicados {
 
     private boolean cerca(Reclamo a, Reclamo b) {
         if (a.getUbicacion().tieneCoordenadas() && b.getUbicacion().tieneCoordenadas()) {
-            return distanciaMetros(a.getUbicacion(), b.getUbicacion()) <= config.radioMetros();
+            return a.getUbicacion().getCoordenadas().distanciaMetros(b.getUbicacion().getCoordenadas())
+                    <= config.radioMetros();
         }
         return a.getBarrio().getId().equals(b.getBarrio().getId());
     }
 
     private static double distanciaOrden(Reclamo a, Reclamo b) {
         return a.getUbicacion().tieneCoordenadas() && b.getUbicacion().tieneCoordenadas()
-                ? distanciaMetros(a.getUbicacion(), b.getUbicacion())
+                ? a.getUbicacion().getCoordenadas().distanciaMetros(b.getUbicacion().getCoordenadas())
                 : Double.MAX_VALUE;
-    }
-
-    /** Formula de haversine. */
-    static double distanciaMetros(Ubicacion a, Ubicacion b) {
-        double dLat = Math.toRadians(b.getLat() - a.getLat());
-        double dLon = Math.toRadians(b.getLon() - a.getLon());
-        double h = Math.pow(Math.sin(dLat / 2), 2)
-                + Math.cos(Math.toRadians(a.getLat())) * Math.cos(Math.toRadians(b.getLat()))
-                * Math.pow(Math.sin(dLon / 2), 2);
-        return 2 * RADIO_TIERRA_METROS * Math.asin(Math.sqrt(h));
     }
 
     private static ReclamoParaComparar paraComparar(Reclamo nuevo, Reclamo candidato) {

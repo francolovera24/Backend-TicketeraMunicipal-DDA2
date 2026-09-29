@@ -76,7 +76,7 @@ public class SvcReclamos {
             if (geo.isPresent()) {
                 // Solo se completan si no vino ninguna; una sola coordenada la rechaza la fabrica.
                 if (ubicacion.getLat() == null && ubicacion.getLon() == null) {
-                    ubicacionFinal = ubicacion.conCoordenadas(geo.get().lat(), geo.get().lon());
+                    ubicacionFinal = ubicacion.conCoordenadas(geo.get().coordenadas());
                 }
                 if (faltaBarrio) {
                     barrioFinal = geo.get().barrio();

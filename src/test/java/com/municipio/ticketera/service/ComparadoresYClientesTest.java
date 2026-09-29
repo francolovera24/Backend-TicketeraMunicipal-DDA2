@@ -122,7 +122,7 @@ class ComparadoresYClientesTest {
                     [{"lat":"-34.5631","lon":"-58.4559",
                       "address":{"road":"Avenida Cabildo","suburb":"Belgrano","city":"Buenos Aires"}}]""");
             assertThat(GeoClient.interpretar(respuesta))
-                    .contains(new GeoClient.ResultadoGeo(-34.5631, -58.4559, "Belgrano"));
+                    .contains(new GeoClient.ResultadoGeo(new com.municipio.ticketera.domain.Coordenadas(-34.5631, -58.4559), "Belgrano"));
         }
 
         @Test
