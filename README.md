@@ -12,6 +12,13 @@ Ciudadanos, Cuadrillas e IA, que se comunican por llamadas en proceso y por
 eventos en RabbitMQ. Detalle y motivos en `CLAUDE.md` ("Arquitectura: decision
 de despliegue"); diagramas en `docs/`.
 
+Diagramas en `docs/` (PlantUML). Para verlos como imagen, desde esta carpeta:
+```bash
+docker run --rm -e PLANTUML_LIMIT_SIZE=16384 -v "${PWD}/docs:/docs" plantuml/plantuml -tsvg -o /docs/_png /docs/*.puml
+```
+El diagrama de clases esta partido en una vista general (`01`) y cuatro de
+detalle (`01a` dominio, `01b` patrones, `01c` servicios, `01d` seguridad).
+
 ## Requisitos
 - Docker y Docker Compose.
 - (Opcional, para desarrollo local) Java 17 y Maven 3.9.

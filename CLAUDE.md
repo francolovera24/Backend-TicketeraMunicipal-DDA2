@@ -222,8 +222,11 @@ Reglas: nombres del diagrama, codigo y comentarios en espanol, README con como
 correrlo y ejemplos curl. Ante una duda de diseno, preguntar antes de inventar.
 
 ## Material en el repo
-- `docs/`: diagramas PlantUML (clases, secuencias de alta, resumen,
-  asignacion/resolucion y autenticacion, componentes, despliegue, flujo de
-  mensajes).
+- `docs/`: diagramas PlantUML. Clases en cinco vistas: `01` general (solo
+  nombres y dependencias entre capas) y detalle en `01a` dominio, `01b`
+  patrones, `01c` API/negocio/datos/IA y `01d` seguridad. Ademas: secuencias
+  de alta (02), resumen (03), asignacion/resolucion (07) y autenticacion (08),
+  componentes (04), despliegue (05) y flujo de mensajes (06). Para verlos:
+  renderizar local (el servidor online de PlantUML rechaza diagramas grandes).
 - `referencia/`: esqueleto previo, DESACTUALIZADO en mensajeria. Usar solo como
   guia para dominio, factories y strategies; el diseno de este archivo manda.

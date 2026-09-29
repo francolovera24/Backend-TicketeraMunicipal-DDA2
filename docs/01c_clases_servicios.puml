@@ -1,0 +1,113 @@
+@startuml 01c_clases_servicios
+title Ticketera Municipal - API, negocio, datos e IA
+
+hide empty members
+skinparam packageStyle rectangle
+left to right direction
+
+package "API" {
+    class REST_Reclamos {
+        +altaReclamo(dto)
+        +consultarReclamos(barrio)
+        +consultarReclamo(id)
+        +cambiarEstado(id, estado)
+        +asignarCuadrilla(id, cuadrillaId)
+    }
+    class REST_Ciudadanos {
+        +altaCiudadano(dto)
+        +miCiudadano()
+        +consultarCiudadano(id)
+        +obtenerHistorial(id)
+    }
+    class REST_Cuadrillas {
+        +listarCuadrillas(especialidad, disponible)
+    }
+    class REST_ResumenZona {
+        +obtenerResumen(barrio, tipo, desde)
+    }
+    class SOAP_Reclamos {
+        +consultarEstadoReclamo(id)
+    }
+}
+
+package "Negocio" {
+    class Svc_Reclamos
+    class Svc_Ciudadanos {
+        +registrarCiudadano(nombre, contacto, usuarioId)
+        +obtenerHistorialReclamos(id)
+    }
+    class Svc_Cuadrillas {
+        +asignar(reclamo)
+        +asignarCuadrilla(reclamoId, cuadrillaId)
+    }
+    class Svc_Barrios {
+        +resolverBarrio(nombre)
+        +obtenerReclamosActivos(barrio)
+    }
+    class Svc_IA {
+        +generarResumen(barrio, tipo, desde)
+        +validarReclamo(reclamo)
+        -anonimizar(reclamo)
+    }
+    class DetectorDeDuplicados {
+        +buscarOriginal(reclamo)
+    }
+}
+
+package "Datos" {
+    class Repo_Reclamo
+    class Repo_Ciudadano
+    class Repo_Cuadrilla
+    class Repo_Barrio
+    class Cache_Resumenes {
+        +get(clave)
+        +set(clave, valor, ttl)
+        +invalidarPrefijo(prefijo)
+    }
+}
+
+package "Externos" {
+    class API_Geo {
+        +geocodificar(direccion)
+    }
+    class API_LLM {
+        +generarTexto(prompt)
+    }
+}
+
+package "util" {
+    class Validador
+    class Anonimizador
+    class Bitacora
+    class ConfiguracionTicketera
+}
+
+REST_Reclamos ..> Svc_Reclamos
+REST_Reclamos ..> Svc_Cuadrillas : asignar-cuadrilla
+REST_Ciudadanos ..> Svc_Ciudadanos
+REST_Cuadrillas ..> Svc_Cuadrillas
+REST_ResumenZona ..> Svc_IA
+SOAP_Reclamos ..> Svc_Reclamos
+
+Svc_Reclamos ..> Svc_Barrios
+Svc_Reclamos ..> API_Geo
+Svc_Reclamos --> Repo_Reclamo
+Svc_Ciudadanos --> Repo_Ciudadano
+Svc_Cuadrillas --> Repo_Cuadrilla
+Svc_Barrios --> Repo_Barrio
+Svc_IA --> Repo_Reclamo
+Svc_IA --> Cache_Resumenes
+Svc_IA --> DetectorDeDuplicados
+Svc_IA ..> API_LLM : resumen
+DetectorDeDuplicados ..> API_LLM : compara
+DetectorDeDuplicados --> Repo_Reclamo
+
+Svc_IA ..> Anonimizador : antes del LLM
+Svc_Ciudadanos ..> Validador
+
+note bottom of Svc_IA
+  Resumen: cache (5 min; fallback 30 s) -> activos
+  -> score (Strategy) -> anonimizar -> LLM.
+  Alta: detecta duplicados; si no, reclamo.validado.
+end note
+@enduml

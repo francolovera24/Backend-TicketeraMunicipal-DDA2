@@ -1,0 +1,96 @@
+@startuml 01b_clases_patrones
+title Ticketera Municipal - patrones de diseno
+
+hide empty members
+skinparam packageStyle rectangle
+
+package "Facade" {
+    class Svc_Reclamos <<Facade>> {
+        +registrarReclamo(tipo, descripcion, ubicacion) : Reclamo
+        +cambiarEstado(id, estado) : Reclamo
+        +consultarReclamos(barrio) : List<Reclamo>
+    }
+}
+
+package "Factory Method" {
+    abstract class ReclamoFactory {
+        +crear(descripcion, ubicacion, barrio, ciudadano) : Reclamo
+        #validar(...) : void
+        #{abstract} construir(...) : Reclamo
+    }
+    class CableadoReclamoFactory
+    class BacheoReclamoFactory
+    class AlumbradoReclamoFactory
+    class ArboladoReclamoFactory
+    class RuidosReclamoFactory
+
+    ReclamoFactory <|-- CableadoReclamoFactory
+    ReclamoFactory <|-- BacheoReclamoFactory
+    ReclamoFactory <|-- AlumbradoReclamoFactory
+    ReclamoFactory <|-- ArboladoReclamoFactory
+    ReclamoFactory <|-- RuidosReclamoFactory
+
+    note bottom of CableadoReclamoFactory
+      construir() marca
+      el reclamo urgente
+    end note
+}
+
+package "Strategy" {
+    interface CriticidadStrategy {
+        +calcularScore(reclamo, similaresEnBarrio) : int
+        +aplicaA(tipo) : boolean
+    }
+    abstract class ScorePorFormula
+    class ScoreCableado {
+        k=10, tope=48 h, m=5
+    }
+    class ScoreBacheo {
+        k=5, tope=72 h, m=15
+    }
+    class ScoreGenerico {
+        k=5, tope=96 h, m=3
+    }
+    class Svc_IA <<Strategy Context>> {
+        +calcularScore(reclamo, similaresEnBarrio) : int
+    }
+
+    CriticidadStrategy <|.. ScorePorFormula
+    ScorePorFormula <|-- ScoreCableado
+    ScorePorFormula <|-- ScoreBacheo
+    ScorePorFormula <|-- ScoreGenerico
+    Svc_IA o--> "3" CriticidadStrategy : elige la primera\nque aplicaA(tipo)
+
+    note bottom of ScorePorFormula
+      score = pesoRiesgo*k + min(antiguedadHoras, tope)
+              + similaresEnBarrio*m
+      ScoreGenerico es el respaldo (va ultima)
+    end note
+}
+
+package "Observer (sobre RabbitMQ)" {
+    interface Sujeto {
+        +suscribir(observador) : void
+        +desuscribir(observador) : void
+        +notificar(evento) : void
+    }
+    interface Observador {
+        +actualizar(evento) : void
+    }
+    class Broker {
+        +publicar(evento) : void
+    }
+    class Consumidor_Eventos <<RabbitListener>>
+    class Svc_Cuadrillas
+    class Svc_IA_Observador as "Svc_IA"
+
+    Sujeto <|.. Broker
+    Observador <|.. Svc_Cuadrillas
+    Observador <|.. Svc_IA_Observador
+    Broker ..> Consumidor_Eventos : publica al exchange;\nentrega via cola
+    Consumidor_Eventos --> Observador : actualizar(evento)
+}
+
+Svc_Reclamos --> "5" ReclamoFactory : elige por tipo
+Svc_Reclamos ..> Broker : publica reclamo.creado
+@enduml

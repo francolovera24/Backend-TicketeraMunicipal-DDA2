@@ -1,0 +1,126 @@
+@startuml 01a_clases_dominio
+title Ticketera Municipal - clases de dominio
+
+hide empty members
+skinparam nodesep 40
+
+class Reclamo {
+    -id : UUID
+    -descripcion : String
+    -tipo : TipoDeReclamo
+    -ubicacion : Ubicacion
+    -estado : Estado
+    -fechaCreacion : Instant
+    -fechaActualizacion : Instant
+    -scoreCriticidad : int
+    -urgente : boolean
+    -reclamoOriginal : Reclamo
+    +cambiarEstado(nuevoEstado) : void
+    +marcarUrgente() : void
+    +asignarCuadrilla(cuadrilla) : void
+    +marcarDuplicadoDe(original) : void
+    +calcularAntiguedad() : long
+    +estaActivo() : boolean
+}
+
+class Ciudadano {
+    -id : UUID
+    -nombre : String
+    -contacto : String
+    -usuario : Usuario
+    +agregarReclamoAlHistorial(reclamo) : void
+    +actualizarContacto(nuevoContacto) : void
+    +vincularUsuario(usuario) : void
+}
+
+class Cuadrilla {
+    -id : UUID
+    -nombre : String
+    -especialidad : TipoDeReclamo
+    -disponible : boolean
+    +marcarDisponible() : void
+    +marcarOcupada() : void
+}
+
+class Barrio {
+    -id : UUID
+    -nombre : String
+    -nombreNormalizado : String
+}
+
+class Usuario {
+    -id : UUID
+    -email : String
+    -passwordHash : String
+    -rol : Rol
+}
+
+class Ubicacion <<Value Object>> {
+    -direccion : String
+    -coordenadas : Coordenadas
+    +tieneCoordenadas() : boolean
+}
+
+class Coordenadas <<Value Object>> {
+    -lat : double
+    -lon : double
+    +distanciaMetros(otra) : double
+}
+
+class ResumenDeZona <<Value Object>> {
+    -barrio : String
+    -tipo : TipoDeReclamo
+    -desde : LocalDate
+    -textoResumen : String
+    -generadoPorIa : boolean
+    -ranking : List<ItemRanking>
+}
+
+enum Estado {
+    NUEVO
+    EN_ANALISIS
+    ASIGNADO
+    EN_PROCESO
+    RESUELTO
+    RECHAZADO
+    DUPLICADO
+}
+
+enum TipoDeReclamo {
+    CABLEADO (10)
+    BACHEO (5)
+    ALUMBRADO (6)
+    ARBOLADO (2)
+    RUIDOS_MOLESTOS (3)
+}
+
+enum Rol {
+    VECINO
+    ADMIN
+}
+
+note bottom of Estado
+  NUEVO -> EN_ANALISIS | ASIGNADO | RECHAZADO | DUPLICADO
+  EN_ANALISIS -> ASIGNADO | RECHAZADO
+  ASIGNADO -> EN_PROCESO | RESUELTO
+  EN_PROCESO -> RESUELTO
+  RESUELTO, RECHAZADO y DUPLICADO son finales.
+end note
+
+note bottom of TipoDeReclamo
+  Entre parentesis: pesoRiesgo
+end note
+
+Ciudadano "1" --> "N" Reclamo : reporta
+Barrio "1" --> "N" Reclamo : agrupa
+Cuadrilla "0..1" --> "N" Reclamo : atiende
+Reclamo "N" --> "0..1" Reclamo : duplicado de
+Reclamo *-- "1" Ubicacion
+Ubicacion *-- "0..1" Coordenadas
+Reclamo --> Estado
+Reclamo --> TipoDeReclamo
+Cuadrilla --> TipoDeReclamo : especialidad
+Ciudadano "0..1" --> "0..1" Usuario : cuenta (opcional)
+Usuario --> Rol
+ResumenDeZona "1" --> "N" Reclamo : ordena
+@enduml

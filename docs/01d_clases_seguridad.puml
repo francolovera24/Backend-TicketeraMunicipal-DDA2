@@ -1,0 +1,83 @@
+@startuml 01d_clases_seguridad
+title Ticketera Municipal - autenticacion y autorizacion
+
+hide empty members
+skinparam packageStyle rectangle
+
+class PanelMunicipal <<requiere rol ADMIN>> {
+    -usuarioLogueado : Usuario
+    -tokenJwt : String
+    +asignarCuadrilla(idReclamo, idCuadrilla) : void
+    +verResumenIA(filtros) : ResumenDeZona
+}
+
+class Usuario {
+    -id : UUID
+    -email : String
+    -passwordHash : String
+    -rol : Rol
+}
+
+enum Rol {
+    VECINO
+    ADMIN
+}
+
+class REST_Auth {
+    +registrar(email, password) : Usuario
+    +login(email, password) : Token
+}
+
+class Svc_Auth {
+    +registrar(email, password) : Usuario
+    +login(email, password) : TokenEmitido
+    -rolPara(email) : Rol
+}
+
+class Repo_Usuario {
+    +buscarPorEmail(email) : Usuario
+}
+
+class ProveedorJwt {
+    +generar(usuario) : TokenEmitido
+    +validar(token) : DatosToken
+}
+
+class JwtAuthenticationFilter {
+    #doFilterInternal(request, response, cadena)
+}
+
+class Permisos {
+    +esCiudadanoPropio(ciudadanoId) : boolean
+}
+
+class "Endpoints de gestion\n(@PreAuthorize)" as Protegidos
+
+note right of Svc_Auth
+  rolPara: @admin.com -> ADMIN, si no VECINO.
+  Password con BCrypt.
+end note
+
+note right of JwtAuthenticationFilter
+  Bearer token -> ROLE_<rol> del claim,
+  sin ir a la base. Invalido -> 401.
+end note
+
+note bottom of Protegidos
+  Solo ADMIN: GET /reclamos, PUT estado,
+  PUT asignar-cuadrilla, GET /resumen-zona,
+  GET /cuadrillas.
+  ADMIN o dueno: GET /ciudadanos/{id} e historial.
+  Sin token -> 401; rol insuficiente -> 403.
+end note
+
+PanelMunicipal --> Usuario : usuarioLogueado
+PanelMunicipal ..> REST_Auth : login
+Usuario --> Rol
+REST_Auth ..> Svc_Auth
+Svc_Auth --> Repo_Usuario
+Svc_Auth ..> ProveedorJwt : emite token
+JwtAuthenticationFilter --> ProveedorJwt : valida token
+JwtAuthenticationFilter ..> Protegidos : autentica
+Protegidos ..> Permisos : regla del dueno
+@enduml
