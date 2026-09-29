@@ -1,74 +1,130 @@
 @startuml 04_diagrama_componentes
+skinparam componentStyle uml2
+skinparam defaultFontSize 11
+skinparam nodesep 12
+skinparam ranksep 20
+skinparam packagePadding 8
+skinparam linetype ortho
+
 title Ticketera Municipal - componentes (monolito modular)
 
-skinparam componentStyle uml2
-skinparam packageStyle rectangle
-skinparam defaultFontSize 12
-skinparam nodesep 40
-skinparam ranksep 60
-
-' ---------------- Clientes ----------------
-[WebApp\n(vecino)] as WebApp
-[PanelMunicipal\n(operador, rol ADMIN)] as Panel
-[Sistema externo] as Externo
-
-' ---------------- Aplicacion ----------------
-package "ticketera-backend.jar  (monolito modular, un unico despliegue)" {
-
-    component "Autenticacion\n--\nAuthController, SvcAuth,\nProveedorJwt, filtro JWT" as Auth
-    component "Reclamos\n--\nREST y SOAP, SvcReclamos (Facade),\nReclamoFactory, SvcBarrios" as Reclamos
-    component "Ciudadanos\n--\nCiudadanoController,\nSvcCiudadanos" as Ciudadanos
-    component "Cuadrillas\n--\nCuadrillaController,\nSvcCuadrillas (Observer)" as Cuadrillas
-    component "IA\n--\nSvcIA (Strategy, Observer),\nDetectorDeDuplicados,\nCache de resumenes" as IA
-
-    component "Mensajeria\n--\nBroker (Sujeto),\nConsumidorEventos" as Mensajeria
-    component "Persistencia\n--\nRepositorios Spring Data,\nmigraciones Flyway" as Datos
+package "Capa Presentacion" {
+    [WebApp - Portal Vecino] as WebApp
+    [PanelMunicipal (rol ADMIN)] as Panel
+    [Sistema externo] as Externo
 }
 
-' ---------------- Infraestructura y externos ----------------
-database "PostgreSQL" as DB
-queue "RabbitMQ" as MQ
-cloud "Nominatim" as Geo
-cloud "Gemini (LLM)" as LLM
+package "Capa Servicios (monolito modular: modulos de un unico despliegue)" {
+    component "Servicio de Autenticacion" as CompAuth {
+        interface "IAuthREST" as IAuth
+        [REST_Auth]
+        [Svc_Auth]
+        [ProveedorJwt]
+        [JwtAuthenticationFilter]
+    }
 
-' ---------------- Clientes -> modulos ----------------
-WebApp --> Reclamos : POST /reclamos
-WebApp --> Ciudadanos : /ciudadanos
-WebApp --> Auth : /auth
-Panel --> Auth : login
-Panel --> Reclamos : gestion de reclamos
-Panel --> Cuadrillas : /cuadrillas
-Panel --> IA : /resumen-zona
-Externo --> Reclamos : SOAP /ws
+    component "Servicio de Reclamos" as CompReclamos {
+        interface "IReclamosREST" as IReclamos
+        interface "IReclamosSOAP" as ISoap
+        [REST_Reclamos]
+        [SOAP_Reclamos]
+        [Svc_Reclamos <<Facade>>]
+        [ReclamoFactory]
+        [Svc_Barrios]
+    }
 
-' ---------------- Entre modulos ----------------
-Reclamos ..> Cuadrillas : asignacion manual
-Reclamos --> Mensajeria : publica
-Cuadrillas --> Mensajeria : publica / consume
-IA --> Mensajeria : publica / consume
+    component "Servicio de Ciudadanos" as CompCiudadanos {
+        interface "ICiudadanosREST" as ICiudadanos
+        [REST_Ciudadanos]
+        [Svc_Ciudadanos]
+    }
 
-Auth --> Datos
-Reclamos --> Datos
-Ciudadanos --> Datos
-Cuadrillas --> Datos
-IA --> Datos
+    component "Servicio de Cuadrillas" as CompCuadrillas {
+        interface "ICuadrillasREST" as ICuadrillas
+        [REST_Cuadrillas]
+        [Svc_Cuadrillas <<Observer>>]
+    }
 
-' ---------------- Hacia afuera ----------------
-Datos --> DB : JDBC
-Mensajeria --> MQ : AMQP
-Reclamos --> Geo : HTTPS
-IA --> LLM : HTTPS
+    component "Servicio de IA" as CompIA {
+        interface "IResumenZonaREST" as IResumen
+        [REST_ResumenZona]
+        [Svc_IA <<Strategy, Observer>>]
+        [DetectorDeDuplicados]
+        [Cache_Resumenes (memoria)]
+    }
+}
 
-' Orden visual de las filas
-Auth -[hidden]right- Reclamos
-Reclamos -[hidden]right- Ciudadanos
-Ciudadanos -[hidden]right- Cuadrillas
-Cuadrillas -[hidden]right- IA
-Mensajeria -[hidden]right- Datos
+package "Capa Mensajeria" {
+    component "Broker de Eventos" as CompBroker {
+        interface "IMensajeria" as IMsg
+        [Broker <<Sujeto>>]
+        [ConsumidorEventos]
+    }
+    queue "RabbitMQ" as MQ
+}
 
-legend bottom
-  Todas las requests pasan por el filtro JWT; los endpoints de gestion exigen rol ADMIN.
-  Todos los modulos usan util (Validador, Bitacora, Anonimizador, ConfiguracionTicketera).
-  Detalle de colas: 06_diagrama_flujo_mensajes. Clases: 01 a 01d.
-endlegend
+package "Capa Datos" {
+    [Repo_Reclamo]
+    [Repo_Barrio]
+    [Repo_Cuadrilla]
+    [Repo_Ciudadano]
+    [Repo_Usuario]
+    database "PostgreSQL" as DB
+}
+
+package "Servicios Externos" {
+    [API Geolocalizacion (Nominatim)] as Geo
+    [API LLM (Gemini)] as LLM
+}
+
+' ---- Presentacion -> interfaces ----
+WebApp --> IReclamos
+WebApp --> ICiudadanos
+Panel --> IAuth
+Panel --> IReclamos
+Panel --> ICuadrillas
+Panel --> IResumen
+Externo --> ISoap
+
+' ---- Mensajeria ----
+CompReclamos --> IMsg : publica eventos
+CompCuadrillas --> IMsg : publica y consume
+CompIA --> IMsg : publica y consume
+CompBroker --> MQ
+CompReclamos ..> CompCuadrillas : asignacion manual
+
+' ---- Datos ----
+CompAuth --> [Repo_Usuario]
+CompReclamos --> [Repo_Reclamo]
+CompReclamos --> [Repo_Barrio]
+CompCiudadanos --> [Repo_Ciudadano]
+CompCuadrillas --> [Repo_Cuadrilla]
+CompIA --> [Repo_Reclamo]
+
+[Repo_Reclamo] --> DB
+[Repo_Barrio] --> DB
+[Repo_Cuadrilla] --> DB
+[Repo_Ciudadano] --> DB
+[Repo_Usuario] --> DB
+
+' ---- Externos ----
+CompReclamos --> Geo
+CompIA --> LLM
+
+' ---- Orden visual (enlaces invisibles) ----
+Panel -[hidden]down- CompReclamos
+CompAuth -[hidden]right- CompReclamos
+CompCiudadanos -[hidden]right- CompCuadrillas
+CompCuadrillas -[hidden]right- CompIA
+CompAuth -[hidden]down- CompCiudadanos
+CompReclamos -[hidden]down- CompCuadrillas
+CompCiudadanos -[hidden]down- [Repo_Reclamo]
+CompCuadrillas -[hidden]down- CompBroker
+CompIA -[hidden]down- Geo
+
+note right of CompAuth
+  JwtAuthenticationFilter valida el
+  token de cada request; los endpoints
+  de gestion exigen rol ADMIN.
+end note
 @enduml
