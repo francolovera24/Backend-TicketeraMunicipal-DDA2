@@ -2,5 +2,4 @@ target/
 .env
 .git/
 docs/
-referencia/
 *.md

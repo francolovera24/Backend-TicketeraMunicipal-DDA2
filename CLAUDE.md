@@ -228,5 +228,5 @@ correrlo y ejemplos curl. Ante una duda de diseno, preguntar antes de inventar.
   de alta (02), resumen (03), asignacion/resolucion (07) y autenticacion (08),
   componentes (04), despliegue (05) y flujo de mensajes (06). Para verlos:
   renderizar local (el servidor online de PlantUML rechaza diagramas grandes).
-- `referencia/`: esqueleto previo, DESACTUALIZADO en mensajeria. Usar solo como
-  guia para dominio, factories y strategies; el diseno de este archivo manda.
+- El esqueleto previo (`referencia/`) se elimino del repositorio: todo su
+  contenido fue reemplazado por la implementacion actual.
