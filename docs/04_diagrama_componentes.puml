@@ -16,6 +16,16 @@ package "Capa Presentacion" {
 
 package "Aplicacion: ticketera-backend.jar (monolito modular, un unico despliegue)" {
 
+    package "Seguridad (Spring Security, JWT)" {
+        component "Modulo Autenticacion" as CompAuth {
+            interface "IAuthREST" as IAuth
+            [REST_Auth]
+            [Svc_Auth]
+            [ProveedorJwt]
+            [JwtAuthenticationFilter] as Filtro
+        }
+    }
+
     package "Capa Servicios (modulos)" {
         component "Modulo Reclamos" as CompReclamos {
             interface "IReclamosREST" as IReclamos
@@ -60,6 +70,7 @@ package "Aplicacion: ticketera-backend.jar (monolito modular, un unico despliegu
         [Repo_Barrio]
         [Repo_Cuadrilla]
         [Repo_Ciudadano]
+        [Repo_Usuario]
     }
 
     package "Componente de utilidad (util)" {
@@ -93,7 +104,21 @@ Panel --> IReclamos
 Panel --> IResumen
 Panel --> ICiudadanos
 Panel --> ICuadrillas
+Panel --> IAuth : login (JWT de rol ADMIN)
+WebApp --> IAuth : registro / login (opcional)
+Filtro ..> CompReclamos : autentica (Bearer)
+Filtro ..> CompIA : autentica (Bearer)
+Filtro ..> CompCiudadanos : autentica (Bearer)
+CompAuth --> [Repo_Usuario]
+[Repo_Usuario] --> DB
 CompReclamos ..> CompCuadrillas : asignar-cuadrilla\n(llamada en proceso)
+
+note right of CompAuth
+  Rol ADMIN requerido (@PreAuthorize) en: GET /reclamos,
+  PUT estado, PUT asignar-cuadrilla, GET /resumen-zona,
+  GET /ciudadanos/{id}/reclamos. El alta de reclamos,
+  la consulta por id, /auth, Swagger y SOAP son publicos.
+end note
 Externos --> ISoap : SOAP (consulta de estado)
 
 CompReclamos --> IMsg : publica eventos

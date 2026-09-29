@@ -44,8 +44,9 @@ note bottom of AppContainer
   Un unico despliegue. Para evolucionar a
   microservicios, el modulo de IA se separaria
   en su propio contenedor consumiendo ia.eventos.
-  Secretos (contrasenas, LLM_API_KEY) solo por
-  variables de entorno desde .env.
+  Secretos (contrasenas, LLM_API_KEY, JWT_SECRET)
+  solo por variables de entorno desde .env.
+  Las requests de gestion llevan un JWT de rol ADMIN.
 end note
 
 note bottom of PgContainer

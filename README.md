@@ -37,7 +37,53 @@ La app espera a que postgres y rabbitmq esten *healthy* antes de arrancar.
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - OpenAPI (JSON): http://localhost:8080/v3/api-docs
 
+## Autenticacion y roles
+
+Hay dos roles. **VECINO** crea reclamos (no necesita cuenta para eso) y
+**ADMIN** gestiona: ve todos los reclamos, cambia estados, asigna cuadrillas,
+consulta el historial de un ciudadano y el resumen de IA. Esos endpoints piden
+un JWT de rol ADMIN en el header `Authorization: Bearer <token>`.
+
+El rol lo decide el backend al registrarse: un email terminado en `@admin.com`
+obtiene ADMIN; cualquier otro, VECINO. (Simplificacion del TP: en un sistema
+real el alta de administradores no seria autoservicio.)
+
+Registrar un usuario:
+```bash
+curl -X POST http://localhost:8080/auth/registro \
+  -H "Content-Type: application/json" \
+  -d '{"email":"operadora@admin.com","password":"clave-segura-123"}'
+# 201 {"id":"...","email":"operadora@admin.com","rol":"ADMIN"}
+```
+
+Iniciar sesion (el token vale 24 horas):
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"operadora@admin.com","password":"clave-segura-123"}'
+# 200 {"token":"eyJ...","tipo":"Bearer","expira":"..."}
+```
+
+Guardar el token y usarlo en un request protegido:
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"operadora@admin.com","password":"clave-segura-123"}' \
+  | sed -E 's/.*"token":"([^"]+)".*/\1/')
+
+curl http://localhost:8080/reclamos -H "Authorization: Bearer $TOKEN"
+```
+Sin token (o con uno invalido o vencido) la respuesta es **401**; con un token
+de VECINO, **403**. En Swagger UI se carga con el boton "Authorize".
+
+`JWT_SECRET` (clave de firma, al menos 32 caracteres) se define en `.env`. Si no
+se define se usa un valor de ejemplo solo para desarrollo y la app lo avisa en
+el log.
+
 ## Ejemplos con curl
+
+Los ejemplos marcados con `$TOKEN` requieren un token de rol ADMIN (ver
+"Autenticacion y roles").
 
 Registrar un ciudadano (guardar el `id` que devuelve):
 ```bash
@@ -63,16 +109,18 @@ curl -X POST http://localhost:8080/reclamos \
 ```
 Tipos: `CABLEADO`, `BACHEO`, `ALUMBRADO`, `ARBOLADO`, `RUIDOS_MOLESTOS`.
 
-Consultar reclamos (todos, de un barrio, o uno por id):
+Consultar reclamos: todos o los de un barrio (ADMIN), o uno por id (publico,
+es el "consultar estado" del vecino):
 ```bash
-curl http://localhost:8080/reclamos
-curl "http://localhost:8080/reclamos?barrio=Palermo"
+curl http://localhost:8080/reclamos -H "Authorization: Bearer $TOKEN"
+curl "http://localhost:8080/reclamos?barrio=Palermo" -H "Authorization: Bearer $TOKEN"
 curl http://localhost:8080/reclamos/<id-del-reclamo>
 ```
 
-Cambiar el estado:
+Cambiar el estado (ADMIN):
 ```bash
 curl -X PUT http://localhost:8080/reclamos/<id-del-reclamo>/estado \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"estado":"EN_PROCESO"}'
 ```
@@ -81,28 +129,30 @@ Transiciones permitidas: `NUEVO -> EN_ANALISIS | ASIGNADO | RECHAZADO`,
 `EN_PROCESO -> RESUELTO`. Otra transicion devuelve 409. `DUPLICADO` solo lo
 asigna el sistema y es final.
 
-Asignar una cuadrilla a mano (Panel Municipal). Primero se buscan las libres
+Asignar una cuadrilla a mano (Panel Municipal, ADMIN). Primero se buscan las libres
 de la especialidad del reclamo:
 ```bash
 curl "http://localhost:8080/cuadrillas?especialidad=BACHEO&disponible=true"
 curl -X PUT http://localhost:8080/reclamos/<id-del-reclamo>/asignar-cuadrilla \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"cuadrillaId":"<id-de-la-cuadrilla>"}'
 ```
 Devuelve 409 si la cuadrilla esta ocupada o es de otra especialidad, o si el
 reclamo ya no espera asignacion.
 
-Consultar un ciudadano y su historial:
+Consultar un ciudadano (publico) y su historial (ADMIN):
 ```bash
 curl http://localhost:8080/ciudadanos/<id-del-ciudadano>
-curl http://localhost:8080/ciudadanos/<id-del-ciudadano>/reclamos
+curl http://localhost:8080/ciudadanos/<id-del-ciudadano>/reclamos -H "Authorization: Bearer $TOKEN"
 ```
 
-Resumen priorizado de un barrio, con filtros opcionales por tipo y por fecha de
+Resumen priorizado de un barrio (ADMIN), con filtros opcionales por tipo y por fecha de
 creacion (desde el inicio de ese dia, hora de Buenos Aires):
 ```bash
-curl "http://localhost:8080/resumen-zona?barrio=Palermo"
-curl "http://localhost:8080/resumen-zona?barrio=Palermo&tipo=BACHEO&desde=2026-09-01"
+curl "http://localhost:8080/resumen-zona?barrio=Palermo" -H "Authorization: Bearer $TOKEN"
+curl "http://localhost:8080/resumen-zona?barrio=Palermo&tipo=BACHEO&desde=2026-09-01" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Servicio SOAP
@@ -214,12 +264,14 @@ El build de Docker (`docker compose up --build`) no corre los tests.
 - **Integracion** (`integracion/`, con Postgres y RabbitMQ reales): alta con
   validacion y asignacion de cuadrilla, reporte duplicado, liberacion de
   cuadrilla y reasignacion del pendiente, resumen de zona con cache e
-  invalidacion, idempotencia de consumidores, DLQ y errores de la API. Usan el
+  invalidacion, idempotencia de consumidores, DLQ, errores de la API, registro
+  y login, y autorizacion por rol (401 sin token, 403 con VECINO). Actuan como
+  ADMIN: `IntegracionBase` registra un usuario `@admin.com` y agrega su token. Usan el
   stub de IA y Nominatim apagado, asi no dependen de servicios externos.
 
 ## Errores
-Formato RFC 7807 (`application/problem+json`): 400 datos invalidos, 404 recurso
-inexistente, 409 conflicto (contacto repetido, transicion invalida, modificacion
+Formato RFC 7807 (`application/problem+json`): 400 datos invalidos, 401 sin
+token o token invalido, 403 rol insuficiente, 404 recurso inexistente, 409 conflicto (contacto repetido, transicion invalida, modificacion
 concurrente), 500 error inesperado.
 
 ## Estado

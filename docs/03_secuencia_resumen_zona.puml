@@ -1,7 +1,8 @@
 @startuml
 title Resumen priorizado de una zona (GET /resumen-zona)
 
-actor "Panel Municipal" as Panel
+actor "Panel Municipal\n(usuario ADMIN)" as Panel
+participant "JwtAuthenticationFilter" as Filtro
 participant "REST_ResumenZona" as REST
 participant "ManejadorDeErrores\n<<RestControllerAdvice>>" as Errores
 participant "Svc_IA\n<<Strategy Context>>" as Svc
@@ -10,7 +11,20 @@ participant "Repo_Reclamo" as Repo
 participant "CriticidadStrategy" as Strategy
 participant "API_LLM" as LLM
 
-Panel -> REST : obtenerResumen(barrio, tipo, desde)
+Panel -> Filtro : GET /resumen-zona\nAuthorization: Bearer <token>
+
+alt token invalido o vencido
+    Filtro --> Panel : 401 Unauthorized
+else sin token
+    Filtro -> REST : obtenerResumen(...) como anonimo
+    REST --> Errores : @PreAuthorize: AccessDeniedException
+    Errores --> Panel : 401 Unauthorized (WWW-Authenticate: Bearer)
+else token con rol VECINO
+    Filtro -> REST : obtenerResumen(...) con ROLE_VECINO
+    REST --> Errores : @PreAuthorize: AccessDeniedException
+    Errores --> Panel : 403 Forbidden
+else token con rol ADMIN
+Filtro -> REST : obtenerResumen(barrio, tipo, desde)\ncon ROLE_ADMIN (rol tomado del token)
 
 alt falta el barrio, o tipo / desde con formato invalido
     REST -> Errores : MissingServletRequestParameterException /\nMethodArgumentTypeMismatchException
@@ -62,5 +76,6 @@ else barrio valido
 
     Svc --> REST : ResumenDeZona
     REST --> Panel : 200 OK, JSON (ranking + texto)
+end
 end
 @enduml

@@ -71,6 +71,26 @@ note right of Estado
   DUPLICADO solo via marcarDuplicadoDe().
 end note
 
+class Usuario {
+    -id : UUID
+    -email : String
+    -passwordHash : String
+    -rol : Rol
+    -fechaAlta : Instant
+}
+
+enum Rol {
+    VECINO
+    ADMIN
+}
+
+note right of Usuario
+  Cuenta para autenticarse (JWT). Distinta de
+  Ciudadano: un ADMIN no tiene por que ser vecino
+  y un vecino puede reclamar sin cuenta.
+  passwordHash = BCrypt, nunca texto plano.
+end note
+
 class Barrio {
     -id : UUID
     -nombre : String
@@ -203,8 +223,9 @@ class WebApp {
     +verHistorial() : List<Reclamo>
 }
 
-class PanelMunicipal {
-    -usuarioLogueado : String
+class PanelMunicipal <<requiere rol ADMIN>> {
+    -usuarioLogueado : Usuario
+    -tokenJwt : String
     -restClient : RestClient
     +gestionarReclamos() : void
     +asignarCuadrilla(idReclamo, idCuadrilla) : void
@@ -239,6 +260,22 @@ class REST_Ciudadanos <<REST API>> {
     +consultarCiudadano(id) : Ciudadano
     +obtenerHistorial(id) : List<Reclamo>
 }
+
+class REST_Auth <<REST API>> {
+    -svcAuth : Svc_Auth
+    +registrar(email, password) : Usuario
+    +login(email, password) : Token
+}
+
+note right of REST_Reclamos
+  Requieren rol ADMIN (@PreAuthorize):
+  consultarReclamos, cambiarEstado,
+  asignarCuadrilla. Publicos: altaReclamo
+  y consultarReclamo(id).
+  REST_ResumenZona.obtenerResumen y
+  REST_Ciudadanos.obtenerHistorial tambien
+  requieren ADMIN.
+end note
 
 class SOAP_Reclamos <<SOAP>> {
     -svcReclamos : Svc_Reclamos
@@ -308,6 +345,43 @@ class DetectorDeDuplicados {
     -ventanaDias : int
     +buscarOriginal(reclamo) : Reclamo
 }
+
+class Svc_Auth {
+    -repo : Repo_Usuario
+    -encoder : PasswordEncoder
+    -proveedorJwt : ProveedorJwt
+    +registrar(email, password) : Usuario
+    +login(email, password) : TokenEmitido
+    -rolPara(email) : Rol
+}
+
+note bottom of Svc_Auth
+  rolPara: email terminado en @admin.com
+  (sin distinguir mayusculas) -> ADMIN;
+  si no, VECINO. Nunca se usa un "rol"
+  enviado por el cliente. Simplificacion
+  del TP: en un sistema real el alta de un
+  admin no seria autoservicio.
+end note
+
+class ProveedorJwt <<config>> {
+    -clave : SecretKey
+    -expiracion : Duration
+    +generar(usuario) : TokenEmitido
+    +validar(token) : DatosToken
+}
+
+class JwtAuthenticationFilter <<config>> {
+    -proveedorJwt : ProveedorJwt
+    #doFilterInternal(request, response, cadena) : void
+}
+
+note bottom of JwtAuthenticationFilter
+  Lee Authorization: Bearer <token>, valida la
+  firma y arma el Authentication con ROLE_<rol>
+  del claim "rol" (sin consultar la base).
+  Token invalido o vencido -> 401.
+end note
 
 class Svc_Ciudadanos {
     -repo : Repo_Ciudadano
@@ -382,6 +456,12 @@ class Repo_Cuadrilla {
     -dataSource : DataSource
     +guardar(cuadrilla) : void
     +buscarDisponibles(especialidad) : List<Cuadrilla>
+}
+
+class Repo_Usuario {
+    -dataSource : DataSource
+    +guardar(usuario) : void
+    +buscarPorEmail(email) : Usuario
 }
 
 class Repo_Ciudadano {
@@ -494,6 +574,7 @@ Cuadrilla "0..1" --> "N" Reclamo : atiende
 Cuadrilla --> TipoDeReclamo : especialidad
 Reclamo "N" --> "1" TipoDeReclamo : es de tipo
 Reclamo "N" --> "1" Estado : esta en
+Usuario "N" --> "1" Rol : tiene
 Reclamo *-- "1" Ubicacion
 Ubicacion *-- "0..1" Coordenadas
 API_Geo ..> Coordenadas : devuelve
@@ -527,6 +608,15 @@ PanelMunicipal ..> REST_Reclamos : usa
 PanelMunicipal ..> REST_ResumenZona : usa
 PanelMunicipal ..> REST_Ciudadanos : usa
 PanelMunicipal ..> REST_Cuadrillas : usa
+PanelMunicipal ..> REST_Auth : login (obtiene JWT)
+PanelMunicipal --> "1" Usuario : usuarioLogueado\n(requiere rol ADMIN)
+REST_Auth ..> Svc_Auth : delega
+Svc_Auth --> Repo_Usuario : usa
+Svc_Auth ..> ProveedorJwt : emite token
+Svc_Auth ..> Usuario : crea
+Repo_Usuario ..> Usuario : persiste
+JwtAuthenticationFilter --> ProveedorJwt : valida token
+JwtAuthenticationFilter ..> REST_Reclamos : autentica requests\n(antes de @PreAuthorize)
 
 REST_Reclamos ..> Svc_Reclamos : delega
 REST_Reclamos ..> Svc_Cuadrillas : delega asignar-cuadrilla

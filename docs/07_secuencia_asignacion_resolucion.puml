@@ -1,7 +1,7 @@
 @startuml
 title Proceso de negocio: asignacion -> trabajo -> resolucion (continua 02_secuencia_reclamo_creado)
 
-actor "Operador municipal" as Operador
+actor "Operador municipal\n(usuario ADMIN)" as Operador
 participant PanelMunicipal as Panel
 participant "REST_Reclamos" as REST
 participant "ManejadorDeErrores\n<<RestControllerAdvice>>" as Errores
@@ -56,6 +56,12 @@ else asignacion valida
 end
 
 == Trabajo en curso ==
+
+note over Panel, REST
+  Todos los pedidos del Panel llevan "Authorization: Bearer <token>"
+  de un usuario ADMIN (ver 08_secuencia_autenticacion). Sin token -> 401;
+  con rol VECINO -> 403 (@PreAuthorize en cambiarEstado y asignarCuadrilla).
+end note
 
 Operador -> Panel : marcar en proceso
 Panel -> REST : PUT /reclamos/{id}/estado (EN_PROCESO)

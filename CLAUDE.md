@@ -19,11 +19,13 @@ diseno. Si algo del codigo contradice un diagrama, senalalo antes de decidir.
 ## Alcance
 DENTRO: Primera Parte completa (arquitectura en capas, patrones Factory,
 Repository, Strategy, Observer, Facade, servicios por componentes, eventos de
-dominio) + mensajeria real con RabbitMQ + componente de IA + una API externa real.
+dominio) + mensajeria real con RabbitMQ + componente de IA + una API externa real
++ autenticacion y autorizacion basica con JWT (ver seccion propia; antes estaba
+FUERA y se incorporo a pedido).
 
 FUERA (no implementar):
 - Sistema legado y `SOAP_Legacy`: descartados a proposito. NO agregarlos.
-- Autenticacion/autorizacion y frontend.
+- Frontend.
 - Outbox pattern: solo mencionarlo como mejora futura.
 
 SOAP (Segunda Parte, implementado): `SoapReclamos` con Spring-WS, contract-first
@@ -65,6 +67,40 @@ Componente de utilidad (`util`, reutilizable e independiente de las capas):
 - `ConfiguracionTicketera`: @ConfigurationProperties("ticketera") con las
   secciones ia, geo y duplicados. Nada de @Value sueltos.
 
+## Autenticacion y autorizacion
+- Roles: enum `Rol` { VECINO, ADMIN }. Entidad `Usuario` (id, email unico en
+  minusculas, passwordHash, rol, fechaAlta) separada de `Ciudadano`: un admin no
+  tiene por que ser vecino. `UsuarioRepository` (Spring Data). Migracion V5.
+- Registro y login: `AuthController` (`POST /auth/registro`, `POST /auth/login`)
+  -> `SvcAuth`. Password con BCrypt, nunca en texto plano. El login responde lo
+  mismo para email inexistente y password incorrecta (401).
+- Regla de rol (backend, `SvcAuth.rolPara`): email terminado en `@admin.com`
+  (sin distinguir mayusculas) -> ADMIN; cualquier otro -> VECINO. Un campo "rol"
+  del request se ignora. Simplificacion del TP: en un sistema real el alta de
+  un admin no seria autoservicio (invitacion o aprobacion manual).
+- JWT (`config.ProveedorJwt`, jjwt): subject = id, claims `email` y `rol`,
+  vence en 24 h, firma HMAC-SHA con `JWT_SECRET` (min. 32 bytes, si no la app no
+  arranca; jjwt elige HS256/384/512 segun el largo). application.yml y
+  docker-compose traen un valor de ejemplo solo para desarrollo, que la app
+  avisa en el log.
+- `config.JwtAuthenticationFilter`: lee `Authorization: Bearer`, valida la firma y
+  arma el Authentication con `ROLE_<rol>` del claim, sin consultar la base. Sin
+  header -> anonimo; token invalido o vencido -> 401 (aun en endpoints publicos).
+- `config.SeguridadConfig`: API sin sesion, sin CSRF, sin form login ni basic
+  auth, `@EnableMethodSecurity`. La autorizacion se declara por endpoint.
+- Requieren ADMIN (`@PreAuthorize("hasRole('ADMIN')")`): GET /reclamos,
+  PUT /reclamos/{id}/estado, PUT /reclamos/{id}/asignar-cuadrilla,
+  GET /resumen-zona, GET /ciudadanos/{id}/reclamos.
+- Publicos: POST /reclamos (el vecino reclama sin cuenta, con `ciudadanoId`),
+  GET /reclamos/{id}, POST /ciudadanos, GET /ciudadanos/{id}, GET /cuadrillas,
+  /auth/**, Swagger y el SOAP /ws.
+- Errores: 401 sin token o token invalido (con `WWW-Authenticate: Bearer`), 403
+  con token valido y rol insuficiente; ambos en formato RFC 7807
+  (`ManejadorDeErrores` y `RespuestaDeError` para la cadena de filtros).
+- Pendiente (no implementado): vincular Usuario con Ciudadano para que un
+  vecino logueado vea solo su historial; decidir si GET /ciudadanos/{id} y
+  GET /cuadrillas deben dejar de ser publicos.
+
 ## Nombres: Barrio y Zona
 Barrio es el unico nombre para la entidad, el repositorio, el servicio
 (`SvcBarrios`), metodos y parametros (`similaresEnBarrio`). "Zona" queda solo en
@@ -81,6 +117,8 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
 | Broker, Consumidor_Eventos, Evento | Broker, ConsumidorEventos, Evento |
 | Cache_Resumenes | CacheResumenes |
 | API_Geo / API_LLM | GeoClient / LlmClient (implementa GeneradorDeResumen) |
+| REST_Auth / Svc_Auth / Repo_Usuario | AuthController / SvcAuth / UsuarioRepository |
+| ProveedorJwt / JwtAuthenticationFilter | config.ProveedorJwt / config.JwtAuthenticationFilter |
 
 ## Dominio
 - Reclamo: id, descripcion, tipo, ubicacion (value object `Ubicacion`: direccion +
@@ -101,6 +139,8 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
 - PUT /reclamos/{id}/asignar-cuadrilla (asignacion manual del Panel, delega en
   SvcCuadrillas.asignarCuadrilla), GET /cuadrillas?especialidad=&disponible=
 - POST /ciudadanos, GET /ciudadanos/{id}, GET /ciudadanos/{id}/reclamos
+- POST /auth/registro, POST /auth/login (ver "Autenticacion y autorizacion" para
+  que endpoints requieren rol ADMIN)
 - GET /resumen-zona?barrio=&tipo=&desde= (tipo y desde opcionales; desde es una
   fecha ISO interpretada en `ticketera.zona-horaria`; la clave de cache incluye
   los tres filtros y un evento del barrio invalida todas sus variantes)
@@ -175,7 +215,8 @@ Reglas: nombres del diagrama, codigo y comentarios en espanol, README con como
 correrlo y ejemplos curl. Ante una duda de diseno, preguntar antes de inventar.
 
 ## Material en el repo
-- `docs/`: diagramas PlantUML (clases, secuencias de alta, resumen y asignacion/resolucion, componentes, despliegue,
-  flujo de mensajes).
+- `docs/`: diagramas PlantUML (clases, secuencias de alta, resumen,
+  asignacion/resolucion y autenticacion, componentes, despliegue, flujo de
+  mensajes).
 - `referencia/`: esqueleto previo, DESACTUALIZADO en mensajeria. Usar solo como
   guia para dominio, factories y strategies; el diseno de este archivo manda.

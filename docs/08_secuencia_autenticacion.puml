@@ -1,0 +1,72 @@
+@startuml
+title Autenticacion y autorizacion (registro, login con JWT y request protegido)
+
+actor "Operador municipal" as Operador
+participant PanelMunicipal as Panel
+participant "JwtAuthenticationFilter" as Filtro
+participant "REST_Auth\n(AuthController)" as Auth
+participant "Svc_Auth" as Svc
+participant "Repo_Usuario" as Repo
+participant "ProveedorJwt" as Jwt
+participant "REST_Reclamos\n@PreAuthorize(ADMIN)" as REST
+participant "ManejadorDeErrores\n<<RestControllerAdvice>>" as Errores
+
+== Registro (publico) ==
+
+Operador -> Panel : alta de cuenta
+Panel -> Auth : POST /auth/registro {email, password}
+Auth -> Svc : registrar(email, password)
+Svc -> Svc : rolPara(email)
+note right of Svc
+  @admin.com (sin distinguir mayusculas) -> ADMIN
+  cualquier otro -> VECINO
+  (un campo "rol" del request se ignora)
+end note
+
+alt email ya registrado
+    Svc --> Errores : ConflictoException
+    Errores --> Panel : 409 Conflict
+else email nuevo
+    Svc -> Svc : passwordHash = BCrypt(password)
+    Svc -> Repo : guardar(usuario)
+    Svc --> Auth : usuario
+    Auth --> Panel : 201 Created {id, email, rol}
+end
+
+== Login (publico) ==
+
+Panel -> Auth : POST /auth/login {email, password}
+Auth -> Svc : login(email, password)
+Svc -> Repo : buscarPorEmail(email)
+
+alt email inexistente o password incorrecta
+    Svc --> Errores : CredencialesInvalidasException
+    Errores --> Panel : 401 Unauthorized (mismo mensaje en ambos casos)
+else credenciales correctas
+    Svc -> Jwt : generar(usuario)
+    note right of Jwt : claims: sub=id, email, rol\nfirma HMAC con JWT_SECRET\nvence en 24 h
+    Jwt --> Svc : token
+    Svc --> Auth : token
+    Auth --> Panel : 200 OK {token, tipo: Bearer, expira}
+end
+
+== Request protegido ==
+
+Panel -> Filtro : GET /reclamos\nAuthorization: Bearer <token>
+Filtro -> Jwt : validar(token)
+
+alt firma invalida, token vencido o mal formado
+    Jwt --> Filtro : vacio
+    Filtro --> Panel : 401 Unauthorized
+else token valido
+    Jwt --> Filtro : DatosToken(id, email, rol)
+    Filtro -> Filtro : Authentication con ROLE_<rol>\n(sin consultar la base)
+    Filtro -> REST : consultarReclamos()
+    alt rol ADMIN
+        REST --> Panel : 200 OK (todos los reclamos)
+    else rol VECINO
+        REST --> Errores : AccessDeniedException
+        Errores --> Panel : 403 Forbidden
+    end
+end
+@enduml

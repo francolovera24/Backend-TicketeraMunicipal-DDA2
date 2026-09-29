@@ -17,6 +17,7 @@ participant "Svc_Cuadrillas\n<<Observer>>" as Cuadrillas
 
 Vecino -> WebApp : crearReclamo(descripcion, ubicacion)
 WebApp -> REST : altaReclamo(dto)
+note right of REST : POST /reclamos es publico:\nel vecino no necesita cuenta
 
 alt dto invalido (Bean Validation: campos vacios, tipo inexistente)
     REST -> Errores : MethodArgumentNotValidException
