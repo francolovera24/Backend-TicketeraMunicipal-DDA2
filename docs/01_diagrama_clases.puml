@@ -9,8 +9,10 @@ class Ciudadano {
     -nombre : String
     -contacto : String
     -historialReclamos : List<Reclamo>
+    -usuario : Usuario
     +agregarReclamoAlHistorial(reclamo) : void
     +actualizarContacto(nuevoContacto) : void
+    +vincularUsuario(usuario) : void
 }
 
 class Reclamo {
@@ -257,9 +259,22 @@ class REST_ResumenZona <<REST API>> {
 class REST_Ciudadanos <<REST API>> {
     -svcCiudadanos : Svc_Ciudadanos
     +altaCiudadano(dto) : Ciudadano
+    +miCiudadano() : Ciudadano
     +consultarCiudadano(id) : Ciudadano
     +obtenerHistorial(id) : List<Reclamo>
 }
+
+class Permisos <<config>> {
+    +esCiudadanoPropio(ciudadanoId) : boolean
+}
+
+note bottom of Permisos
+  @PreAuthorize("hasRole('ADMIN') or
+  @permisos.esCiudadanoPropio(#id)")
+  en consultarCiudadano y obtenerHistorial:
+  el vecino solo ve el ciudadano vinculado
+  a su cuenta.
+end note
 
 class REST_Auth <<REST API>> {
     -svcAuth : Svc_Auth
@@ -268,13 +283,16 @@ class REST_Auth <<REST API>> {
 }
 
 note right of REST_Reclamos
-  Requieren rol ADMIN (@PreAuthorize):
-  consultarReclamos, cambiarEstado,
-  asignarCuadrilla. Publicos: altaReclamo
-  y consultarReclamo(id).
+  Solo ADMIN (@PreAuthorize): consultarReclamos,
+  cambiarEstado, asignarCuadrilla,
   REST_ResumenZona.obtenerResumen y
-  REST_Ciudadanos.obtenerHistorial tambien
-  requieren ADMIN.
+  REST_Cuadrillas.listarCuadrillas.
+  ADMIN o vecino dueno: REST_Ciudadanos.
+  consultarCiudadano y obtenerHistorial.
+  Solo VECINO: miCiudadano.
+  Publicos: altaReclamo, consultarReclamo(id)
+  y altaCiudadano (si llama un VECINO logueado,
+  vincula el ciudadano a su cuenta).
 end note
 
 class SOAP_Reclamos <<SOAP>> {
@@ -575,6 +593,7 @@ Cuadrilla --> TipoDeReclamo : especialidad
 Reclamo "N" --> "1" TipoDeReclamo : es de tipo
 Reclamo "N" --> "1" Estado : esta en
 Usuario "N" --> "1" Rol : tiene
+Ciudadano "0..1" --> "0..1" Usuario : cuenta del vecino\n(opcional)
 Reclamo *-- "1" Ubicacion
 Ubicacion *-- "0..1" Coordenadas
 API_Geo ..> Coordenadas : devuelve
@@ -611,6 +630,8 @@ PanelMunicipal ..> REST_Cuadrillas : usa
 PanelMunicipal ..> REST_Auth : login (obtiene JWT)
 PanelMunicipal --> "1" Usuario : usuarioLogueado\n(requiere rol ADMIN)
 REST_Auth ..> Svc_Auth : delega
+REST_Ciudadanos ..> Permisos : @PreAuthorize
+Permisos ..> Svc_Ciudadanos : perteneceA(ciudadano, usuario)
 Svc_Auth --> Repo_Usuario : usa
 Svc_Auth ..> ProveedorJwt : emite token
 Svc_Auth ..> Usuario : crea

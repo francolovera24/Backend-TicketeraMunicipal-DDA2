@@ -132,7 +132,7 @@ asigna el sistema y es final.
 Asignar una cuadrilla a mano (Panel Municipal, ADMIN). Primero se buscan las libres
 de la especialidad del reclamo:
 ```bash
-curl "http://localhost:8080/cuadrillas?especialidad=BACHEO&disponible=true"
+curl "http://localhost:8080/cuadrillas?especialidad=BACHEO&disponible=true" -H "Authorization: Bearer $TOKEN"
 curl -X PUT http://localhost:8080/reclamos/<id-del-reclamo>/asignar-cuadrilla \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -141,10 +141,20 @@ curl -X PUT http://localhost:8080/reclamos/<id-del-reclamo>/asignar-cuadrilla \
 Devuelve 409 si la cuadrilla esta ocupada o es de otra especialidad, o si el
 reclamo ya no espera asignacion.
 
-Consultar un ciudadano (publico) y su historial (ADMIN):
+Consultar un ciudadano y su historial (ADMIN, o el vecino dueno):
 ```bash
-curl http://localhost:8080/ciudadanos/<id-del-ciudadano>
+curl http://localhost:8080/ciudadanos/<id-del-ciudadano> -H "Authorization: Bearer $TOKEN"
 curl http://localhost:8080/ciudadanos/<id-del-ciudadano>/reclamos -H "Authorization: Bearer $TOKEN"
+```
+
+Vecino con cuenta: si se da de alta como ciudadano estando logueado, queda
+vinculado y despues puede ver solo sus datos y su historial:
+```bash
+TOKEN_VECINO=$(curl -s -X POST http://localhost:8080/auth/login -H "Content-Type: application/json" \
+  -d '{"email":"vecino@gmail.com","password":"clave-segura-123"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
+curl -X POST http://localhost:8080/ciudadanos -H "Authorization: Bearer $TOKEN_VECINO" \
+  -H "Content-Type: application/json" -d '{"nombre":"Ana Perez","contacto":"ana.perez@example.com"}'
+curl http://localhost:8080/ciudadanos/yo -H "Authorization: Bearer $TOKEN_VECINO"
 ```
 
 Resumen priorizado de un barrio (ADMIN), con filtros opcionales por tipo y por fecha de

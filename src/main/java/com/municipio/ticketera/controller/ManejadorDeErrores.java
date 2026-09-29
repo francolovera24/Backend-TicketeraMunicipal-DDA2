@@ -59,7 +59,7 @@ public class ManejadorDeErrores extends ResponseEntityExceptionHandler {
             return noAutenticado(MENSAJE_SIN_TOKEN);
         }
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problema(HttpStatus.FORBIDDEN, "Acceso denegado",
-                "Tu rol (" + rolDe(actual) + ") no permite esta operacion: requiere rol ADMIN"));
+                "Tu rol (" + rolDe(actual) + ") no tiene permiso para esta operacion o este recurso"));
     }
 
     @ExceptionHandler(AuthenticationException.class)

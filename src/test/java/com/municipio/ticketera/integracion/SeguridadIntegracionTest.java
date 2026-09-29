@@ -42,7 +42,51 @@ class SeguridadIntegracionTest extends IntegracionBase {
                 Arguments.of(HttpMethod.PUT, "/reclamos/" + RECLAMO + "/asignar-cuadrilla",
                         "{\"cuadrillaId\":\"" + UUID.randomUUID() + "\"}"),
                 Arguments.of(HttpMethod.GET, "/resumen-zona?barrio=Palermo", null),
-                Arguments.of(HttpMethod.GET, "/ciudadanos/" + UUID.randomUUID() + "/reclamos", null));
+                Arguments.of(HttpMethod.GET, "/ciudadanos/" + UUID.randomUUID() + "/reclamos", null),
+                Arguments.of(HttpMethod.GET, "/ciudadanos/" + UUID.randomUUID(), null),
+                Arguments.of(HttpMethod.GET, "/cuadrillas", null));
+    }
+
+    @Test
+    void elVecinoVeSoloSuCiudadanoYSuHistorial() {
+        // Alta logueado: el ciudadano queda vinculado a la cuenta del vecino.
+        ResponseEntity<Map> alta = pedir(tokenVecino, HttpMethod.POST, "/ciudadanos",
+                "{\"nombre\":\"Vecina con cuenta\",\"contacto\":\"" + UUID.randomUUID() + "@test.com\"}");
+        assertThat(alta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        String propio = (String) alta.getBody().get("id");
+        String reclamo = "{\"ciudadanoId\":\"" + propio + "\",\"tipo\":\"ARBOLADO\","
+                + "\"descripcion\":\"Arbol con hongos en la base\",\"direccion\":\"Calle 2\",\"barrio\":\"Monte Castro\"}";
+        assertThat(pedir(null, HttpMethod.POST, "/reclamos", reclamo).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        assertThat(pedir(tokenVecino, HttpMethod.GET, "/ciudadanos/yo", null).getBody()).containsEntry("id", propio);
+        assertThat(pedir(tokenVecino, HttpMethod.GET, "/ciudadanos/" + propio, null).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(pedirTexto(tokenVecino, HttpMethod.GET, "/ciudadanos/" + propio + "/reclamos", null).getBody())
+                .contains("Arbol con hongos en la base");
+
+        // Otro vecino no puede ver ese ciudadano ni su historial; el admin si.
+        String otroVecino = obtenerToken("otro-" + UUID.randomUUID() + "@gmail.com");
+        assertThat(pedir(otroVecino, HttpMethod.GET, "/ciudadanos/" + propio, null).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(pedir(otroVecino, HttpMethod.GET, "/ciudadanos/" + propio + "/reclamos", null).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(pedir(tokenAdmin, HttpMethod.GET, "/ciudadanos/" + propio, null).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        // Una cuenta tiene un solo ciudadano.
+        assertThat(pedir(tokenVecino, HttpMethod.POST, "/ciudadanos",
+                "{\"nombre\":\"Otro\",\"contacto\":\"" + UUID.randomUUID() + "@test.com\"}").getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void miCiudadanoEsSoloParaVecinosConCiudadano() {
+        assertThat(pedir(null, HttpMethod.GET, "/ciudadanos/yo", null).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(pedir(tokenAdmin, HttpMethod.GET, "/ciudadanos/yo", null).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(pedir(tokenVecino, HttpMethod.GET, "/ciudadanos/yo", null).getStatusCode())
+                .as("vecino sin ciudadano vinculado").isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @ParameterizedTest(name = "{0} {1} sin token -> 401")
@@ -63,7 +107,7 @@ class SeguridadIntegracionTest extends IntegracionBase {
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(respuesta.getBody()).containsEntry("status", 403).containsEntry("title", "Acceso denegado");
-        assertThat((String) respuesta.getBody().get("detail")).contains("VECINO").contains("ADMIN");
+        assertThat((String) respuesta.getBody().get("detail")).contains("VECINO");
     }
 
     @ParameterizedTest(name = "{0} {1} con ADMIN -> pasa la autorizacion")

@@ -88,18 +88,25 @@ Componente de utilidad (`util`, reutilizable e independiente de las capas):
   header -> anonimo; token invalido o vencido -> 401 (aun en endpoints publicos).
 - `config.SeguridadConfig`: API sin sesion, sin CSRF, sin form login ni basic
   auth, `@EnableMethodSecurity`. La autorizacion se declara por endpoint.
-- Requieren ADMIN (`@PreAuthorize("hasRole('ADMIN')")`): GET /reclamos,
+- Solo ADMIN (`@PreAuthorize("hasRole('ADMIN')")`): GET /reclamos,
   PUT /reclamos/{id}/estado, PUT /reclamos/{id}/asignar-cuadrilla,
-  GET /resumen-zona, GET /ciudadanos/{id}/reclamos.
+  GET /resumen-zona, GET /cuadrillas.
+- ADMIN o el vecino dueno (`Permisos.ADMIN_O_CIUDADANO_PROPIO`, bean
+  `config.Permisos`): GET /ciudadanos/{id} y GET /ciudadanos/{id}/reclamos.
+  Esta regla si consulta la base (de quien es el ciudadano); el rol sigue
+  saliendo del token.
+- Solo VECINO: GET /ciudadanos/yo (su ciudadano vinculado).
 - Publicos: POST /reclamos (el vecino reclama sin cuenta, con `ciudadanoId`),
-  GET /reclamos/{id}, POST /ciudadanos, GET /ciudadanos/{id}, GET /cuadrillas,
-  /auth/**, Swagger y el SOAP /ws.
+  GET /reclamos/{id}, POST /ciudadanos, /auth/**, Swagger y el SOAP /ws.
+- Vinculo Usuario-Ciudadano (opcional, migracion V6): si un VECINO logueado
+  hace POST /ciudadanos, el ciudadano queda asociado a su cuenta (una cuenta,
+  a lo sumo un ciudadano). Sin cuenta se sigue pudiendo reclamar.
 - Errores: 401 sin token o token invalido (con `WWW-Authenticate: Bearer`), 403
   con token valido y rol insuficiente; ambos en formato RFC 7807
   (`ManejadorDeErrores` y `RespuestaDeError` para la cadena de filtros).
-- Pendiente (no implementado): vincular Usuario con Ciudadano para que un
-  vecino logueado vea solo su historial; decidir si GET /ciudadanos/{id} y
-  GET /cuadrillas deben dejar de ser publicos.
+- Mejora futura: vincular un ciudadano ya existente a una cuenta (hoy solo se
+  vincula al darse de alta logueado) y que un vecino logueado solo pueda crear
+  reclamos para su propio ciudadano.
 
 ## Nombres: Barrio y Zona
 Barrio es el unico nombre para la entidad, el repositorio, el servicio

@@ -114,10 +114,12 @@ CompAuth --> [Repo_Usuario]
 CompReclamos ..> CompCuadrillas : asignar-cuadrilla\n(llamada en proceso)
 
 note right of CompAuth
-  Rol ADMIN requerido (@PreAuthorize) en: GET /reclamos,
-  PUT estado, PUT asignar-cuadrilla, GET /resumen-zona,
-  GET /ciudadanos/{id}/reclamos. El alta de reclamos,
-  la consulta por id, /auth, Swagger y SOAP son publicos.
+  Solo ADMIN (@PreAuthorize): GET /reclamos, PUT estado,
+  PUT asignar-cuadrilla, GET /resumen-zona, GET /cuadrillas.
+  ADMIN o vecino dueno: GET /ciudadanos/{id} y su historial.
+  Solo VECINO: GET /ciudadanos/yo.
+  Publicos: POST /reclamos, GET /reclamos/{id},
+  POST /ciudadanos, /auth, Swagger y SOAP.
 end note
 Externos --> ISoap : SOAP (consulta de estado)
 

@@ -69,4 +69,21 @@ else token valido
         Errores --> Panel : 403 Forbidden
     end
 end
+
+== Vecino con cuenta: solo su propio ciudadano ==
+
+actor Vecino
+participant "REST_Ciudadanos" as RESTC
+participant "Permisos" as Permisos
+
+Vecino -> RESTC : POST /ciudadanos (Bearer de VECINO)
+note right of RESTC : el ciudadano queda vinculado\na la cuenta del vecino
+Vecino -> RESTC : GET /ciudadanos/{id}/reclamos (Bearer de VECINO)
+RESTC -> Permisos : esCiudadanoPropio(id)
+alt el ciudadano es de su cuenta
+    RESTC --> Vecino : 200 OK (su historial)
+else es de otro
+    RESTC --> Errores : AccessDeniedException
+    Errores --> Vecino : 403 Forbidden
+end
 @enduml
