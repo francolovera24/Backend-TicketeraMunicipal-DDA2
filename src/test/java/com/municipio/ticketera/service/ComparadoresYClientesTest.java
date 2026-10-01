@@ -104,6 +104,24 @@ class ComparadoresYClientesTest {
         }
 
         @Test
+        void leeElJsonAunqueNoVengaMarcadoComoTal() {
+            byte[] crudo = """
+                    {"candidates":[{"content":{"parts":[{"text":"Hay dos baches."}]}}]}"""
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            assertThat(LlmClient.extraerTexto(LlmClient.leerJson(crudo))).isEqualTo("Hay dos baches.");
+        }
+
+        @Test
+        void unErrorDelModeloNoSeTomaComoResumen() {
+            byte[] crudo = """
+                    {"error":{"code":503,"message":"alta demanda","status":"UNAVAILABLE"}}"""
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            assertThatThrownBy(() -> LlmClient.leerJson(crudo))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("alta demanda");
+        }
+
+        @Test
         void respuestaVaciaOSinCandidatosEsError() throws Exception {
             assertThatThrownBy(() -> LlmClient.extraerTexto(json("{\"candidates\":[]}")))
                     .isInstanceOf(IllegalStateException.class);

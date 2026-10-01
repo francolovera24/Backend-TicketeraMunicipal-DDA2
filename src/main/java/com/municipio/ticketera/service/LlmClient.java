@@ -3,6 +3,8 @@ package com.municipio.ticketera.service;
 import com.municipio.ticketera.util.Bitacora;
 import com.municipio.ticketera.util.ConfiguracionTicketera;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
@@ -11,10 +13,12 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * API_LLM del diagrama: con Gemini (generateContent) genera el resumen de zona
@@ -22,7 +26,9 @@ import org.springframework.web.client.RestClient;
  * Se activa con ticketera.ia.generador=llm (IA_GENERADOR=llm).
  * <p>
  * Privacidad: al modelo solo le llegan barrio, tipo y descripcion.
- * Resiliencia: timeouts de conexion y lectura; si falla, SvcIA usa el texto de fallback.
+ * Resiliencia: timeouts de conexion y lectura; un 429 o 503 se reintenta una vez.
+ * El cuerpo se lee como bytes: Gemini a veces lo manda como octet-stream y Spring
+ * no lo convierte a JSON. Si igual falla, SvcIA usa el texto de fallback.
  */
 @Component
 @ConditionalOnProperty(name = "ticketera.ia.generador", havingValue = "llm")
@@ -55,6 +61,12 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
 
     private static final Pattern PRIMER_NUMERO = Pattern.compile("\\d+");
 
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    private static final int REINTENTOS = 2;
+
+    private static final long PAUSA_REINTENTO_MS = 1_000;
+
     private final RestClient http;
     private final String modelo;
 
@@ -81,7 +93,7 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
             return "No hay reclamos activos en " + barrio + ".";
         }
         long inicio = System.currentTimeMillis();
-        String texto = generar(INSTRUCCIONES, armarPrompt(barrio, reclamosOrdenados), 0.3, 400);
+        String texto = generar(INSTRUCCIONES, armarPrompt(barrio, reclamosOrdenados), 0.3, 1024);
         log.info("ia.resumen_generado", "barrio", barrio, "modelo", modelo, "ms", System.currentTimeMillis() - inicio);
         return texto;
     }
@@ -125,13 +137,65 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
     }
 
     private String generar(String instrucciones, String prompt, double temperatura, int maxTokens) {
-        JsonNode respuesta = http.post()
+        RestClientResponseException ultimo = null;
+        for (int intento = 1; intento <= REINTENTOS; intento++) {
+            try {
+                return extraerTexto(pedir(instrucciones, prompt, temperatura, maxTokens));
+            } catch (RestClientResponseException e) {
+                ultimo = e;
+                if (intento == REINTENTOS || !reintentable(e.getStatusCode().value())) {
+                    throw e;
+                }
+                log.aviso("ia.reintento", "status", e.getStatusCode().value(), "modelo", modelo, "intento", intento);
+                pausa();
+            }
+        }
+        throw ultimo;
+    }
+
+    /**
+     * Lee el cuerpo crudo y lo parsea con Jackson. No usa el Content-Type: un 200
+     * con application/octet-stream igual puede traer el JSON de generateContent.
+     */
+    private JsonNode pedir(String instrucciones, String prompt, double temperatura, int maxTokens) {
+        byte[] crudo = http.post()
                 .uri("/models/{modelo}:generateContent", modelo)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(cuerpo(instrucciones, prompt, temperatura, maxTokens))
                 .retrieve()
-                .body(JsonNode.class);
-        return extraerTexto(respuesta);
+                .body(byte[].class);
+        return leerJson(crudo);
+    }
+
+    static JsonNode leerJson(byte[] crudo) {
+        if (crudo == null || crudo.length == 0) {
+            throw new IllegalStateException("Respuesta del LLM vacia");
+        }
+        JsonNode json;
+        try {
+            json = JSON.readTree(crudo);
+        } catch (IOException e) {
+            throw new IllegalStateException("Respuesta del LLM no es JSON", e);
+        }
+        JsonNode error = json.get("error");
+        if (error != null && !error.isNull()) {
+            String mensaje = error.path("message").asText("").trim();
+            throw new IllegalStateException(mensaje.isEmpty() ? "Error del LLM" : mensaje);
+        }
+        return json;
+    }
+
+    private static boolean reintentable(int status) {
+        return status == HttpStatus.TOO_MANY_REQUESTS.value() || status == HttpStatus.SERVICE_UNAVAILABLE.value();
+    }
+
+    private static void pausa() {
+        try {
+            Thread.sleep(PAUSA_REINTENTO_MS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Reintento del LLM interrumpido", e);
+        }
     }
 
     static String armarPrompt(String barrio, List<ReclamoParaResumen> reclamos) {
@@ -151,15 +215,16 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
         return limpia.length() <= MAX_DESCRIPCION ? limpia : limpia.substring(0, MAX_DESCRIPCION) + "...";
     }
 
-    private static Map<String, Object> cuerpo(String instrucciones, String prompt, double temperatura, int maxTokens) {
+    private Map<String, Object> cuerpo(String instrucciones, String prompt, double temperatura, int maxTokens) {
+        // Gemini 3 no acepta thinkingBudget y temperature baja puede dejar la respuesta en loop.
+        Map<String, Object> generacion = modelo.startsWith("gemini-3")
+                ? Map.of("maxOutputTokens", maxTokens, "thinkingConfig", Map.of("thinkingLevel", "low"))
+                : Map.of("maxOutputTokens", maxTokens, "temperature", temperatura,
+                        "thinkingConfig", Map.of("thinkingBudget", 0));
         return Map.of(
                 "systemInstruction", Map.of("parts", List.of(Map.of("text", instrucciones))),
                 "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", prompt)))),
-                "generationConfig", Map.of(
-                        "temperature", temperatura,
-                        "maxOutputTokens", maxTokens,
-                        // Sin "thinking": respuesta mas rapida, suficiente para un resumen.
-                        "thinkingConfig", Map.of("thinkingBudget", 0)));
+                "generationConfig", generacion);
     }
 
     /** Une las partes de texto del primer candidato, salteando las de razonamiento. */
