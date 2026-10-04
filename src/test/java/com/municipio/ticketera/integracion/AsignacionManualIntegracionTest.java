@@ -52,6 +52,17 @@ class AsignacionManualIntegracionTest extends IntegracionBase {
     }
 
     @Test
+    void cambiarSoloElEstadoAAsignadoDevuelve409YSiguePendiente() {
+        String id = reclamoPendiente("Rama sobre la senda peatonal", "Asignacion-" + UUID.randomUUID());
+
+        assertThat(cambiarEstado(id, "ASIGNADO").getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        Map<String, Object> pendiente = reclamo(id);
+        assertThat(pendiente.get("estado")).isEqualTo("NUEVO");
+        assertThat(pendiente.get("cuadrillaId")).isNull();
+    }
+
+    @Test
     void cuadrillaOcupadaDevuelve409() {
         String reclamo = reclamoPendiente("Arbol seco en la vereda", "Villa Real");
         assertThat(asignar(reclamo, cuadrillaPropia).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);

@@ -8,6 +8,7 @@ import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class ReclamoTest {
 
@@ -53,6 +54,36 @@ class ReclamoTest {
                 .isInstanceOf(TransicionInvalidaException.class);
     }
 
+    @ParameterizedTest
+    @EnumSource(value = Estado.class, names = {"NUEVO", "EN_ANALISIS"})
+    void asignadoNoSePuedeObtenerSoloConCambiarEstado(Estado origen) {
+        Reclamo reclamo = DatosDePrueba.reclamo(TipoDeReclamo.BACHEO, "Pozo");
+        if (origen == Estado.EN_ANALISIS) {
+            reclamo.cambiarEstado(origen);
+        }
+        var fechaAnterior = reclamo.getFechaActualizacion();
+
+        assertThatThrownBy(() -> reclamo.cambiarEstado(Estado.ASIGNADO))
+                .isInstanceOf(TransicionInvalidaException.class);
+
+        assertThat(reclamo.getEstado()).isEqualTo(origen);
+        assertThat(reclamo.getCuadrilla()).isNull();
+        assertThat(reclamo.getFechaActualizacion()).isEqualTo(fechaAnterior);
+    }
+
+    @Test
+    void asignarSinCuadrillaNoModificaElReclamo() {
+        Reclamo reclamo = DatosDePrueba.reclamo(TipoDeReclamo.BACHEO, "Pozo");
+        var fechaAnterior = reclamo.getFechaActualizacion();
+
+        assertThatThrownBy(() -> reclamo.asignarCuadrilla(null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(reclamo.getEstado()).isEqualTo(Estado.NUEVO);
+        assertThat(reclamo.getCuadrilla()).isNull();
+        assertThat(reclamo.getFechaActualizacion()).isEqualTo(fechaAnterior);
+    }
+
     @Test
     void marcarDuplicadoDeGuardaElOriginal() {
         Reclamo original = DatosDePrueba.reclamo(TipoDeReclamo.BACHEO, "Pozo en la esquina");
@@ -74,15 +105,32 @@ class ReclamoTest {
         assertThatThrownBy(() -> reclamo.marcarDuplicadoDe(otroTipo)).isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    void asignarCuadrillaPasaAAsignado() {
+    @ParameterizedTest
+    @EnumSource(value = Estado.class, names = {"NUEVO", "EN_ANALISIS"})
+    void asignarCuadrillaPasaAAsignado(Estado origen) {
         Reclamo reclamo = DatosDePrueba.reclamo(TipoDeReclamo.ARBOLADO, "Rama caida");
         Cuadrilla cuadrilla = new Cuadrilla("Arbolado 1", TipoDeReclamo.ARBOLADO);
+        if (origen == Estado.EN_ANALISIS) {
+            reclamo.cambiarEstado(origen);
+        }
 
         reclamo.asignarCuadrilla(cuadrilla);
 
         assertThat(reclamo.getEstado()).isEqualTo(Estado.ASIGNADO);
         assertThat(reclamo.getCuadrilla()).isSameAs(cuadrilla);
+    }
+
+    @Test
+    void unaReasignacionInvalidaConservaLaCuadrillaOriginal() {
+        Reclamo reclamo = DatosDePrueba.reclamo(TipoDeReclamo.ARBOLADO, "Rama caida");
+        Cuadrilla primera = new Cuadrilla("Arbolado 1", TipoDeReclamo.ARBOLADO);
+        reclamo.asignarCuadrilla(primera);
+
+        assertThatThrownBy(() -> reclamo.asignarCuadrilla(new Cuadrilla("Arbolado 2", TipoDeReclamo.ARBOLADO)))
+                .isInstanceOf(TransicionInvalidaException.class);
+
+        assertThat(reclamo.getEstado()).isEqualTo(Estado.ASIGNADO);
+        assertThat(reclamo.getCuadrilla()).isSameAs(primera);
     }
 
     @Test
