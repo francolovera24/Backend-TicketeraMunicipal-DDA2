@@ -19,6 +19,8 @@
 
     <properties>
         <java.version>17</java.version>
+        <ticketera.main-class>com.municipio.ticketera.TicketeraApplication</ticketera.main-class>
+        <ticketera.artifact-name>ticketera-backend</ticketera.artifact-name>
         <springdoc.version>2.6.0</springdoc.version>
         <jjwt.version>0.12.6</jjwt.version>
         <!-- La 1.19.x que trae Boot 3.3 usa una API de Docker que Docker 29 ya no acepta. -->
@@ -143,11 +145,14 @@
     </dependencies>
 
     <build>
-        <finalName>ticketera-backend</finalName>
+        <finalName>${ticketera.artifact-name}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>${ticketera.main-class}</mainClass>
+                </configuration>
             </plugin>
             <!-- Contract-first: las clases del servicio SOAP se generan desde el XSD. -->
             <plugin>
@@ -172,4 +177,20 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>reclamos</id>
+            <properties>
+                <ticketera.main-class>com.municipio.ticketera.aplicaciones.ReclamosApplication</ticketera.main-class>
+                <ticketera.artifact-name>ticketera-reclamos</ticketera.artifact-name>
+            </properties>
+        </profile>
+        <profile>
+            <id>ia</id>
+            <properties>
+                <ticketera.main-class>com.municipio.ticketera.aplicaciones.IAApplication</ticketera.main-class>
+                <ticketera.artifact-name>ticketera-ia</ticketera.artifact-name>
+            </properties>
+        </profile>
+    </profiles>
 </project>

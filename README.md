@@ -6,11 +6,19 @@ Aplicaciones II, UADE). El diseno esta en `docs/` (PlantUML) y las decisiones en
 
 ## Arquitectura
 
-Monolito modular con base de datos compartida, pensado para evolucionar a
-microservicios: un solo JAR y un solo contenedor con los modulos Reclamos,
-Ciudadanos, Cuadrillas e IA, que se comunican por llamadas en proceso y por
-eventos en RabbitMQ. Detalle y motivos en `CLAUDE.md` ("Arquitectura: decision
-de despliegue"); diagramas en `docs/`.
+El backend admite un arranque integrado y dos aplicaciones separadas:
+
+- Reclamos: REST de reclamos, ciudadanos y cuadrillas, autenticacion, SOAP y
+  consumidor de `cuadrillas.eventos`.
+- Zonas/Resumenes e IA: REST `/resumen-zona`, ranking, Gemini, cache, deteccion
+  de duplicados y consumidor de `ia.eventos`.
+
+Ambas aplicaciones usan PostgreSQL compartido y se comunican por eventos en
+RabbitMQ. Cada arranque registra explicitamente sus componentes. El modo
+integrado conserva todos los modulos y sigue siendo el usado por el
+`docker-compose.yml` actual. El despliegue separado con Compose esta pendiente.
+Ver [composicion, avances y ejecucion](docs/separacion-servicios.md),
+`CLAUDE.md` y el diagrama `docs/09_diagrama_aplicaciones.puml`.
 
 Diagramas en `docs/` (PlantUML). Para verlos como imagen, desde esta carpeta:
 ```bash
@@ -43,6 +51,28 @@ La app espera a que postgres y rabbitmq esten *healthy* antes de arrancar.
 
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - OpenAPI (JSON): http://localhost:8080/v3/api-docs
+
+### Ejecutar las aplicaciones separadas con Java
+
+Con PostgreSQL y RabbitMQ disponibles y sus variables de entorno configuradas:
+
+```bash
+mvn -Preclamos package -DskipTests
+mvn -Pia package -DskipTests
+```
+
+Ejecutar en terminales distintas:
+
+```bash
+java -jar target/ticketera-reclamos.jar
+java -jar target/ticketera-ia.jar
+```
+
+Reclamos usa HTTP 8080 e IA HTTP 8081 por defecto. Cada proceso necesita las
+variables de conexion a la misma base y broker, y el mismo `JWT_SECRET` para
+aceptar los tokens emitidos por Reclamos. `SERVER_PORT` permite cambiar el
+puerto de cada proceso. Java no carga `.env` automaticamente.
+Detalle en [separacion de servicios](docs/separacion-servicios.md).
 
 ## Autenticacion y roles
 

@@ -1,0 +1,59 @@
+@startuml AplicacionesSeparadas
+left to right direction
+skinparam componentStyle rectangle
+title Ticketera Municipal - aplicaciones separadas con PostgreSQL compartido
+
+actor "Portal / Panel Municipal" as Cliente
+
+node "Reclamos\nHTTP 8080\nticketera-reclamos.jar" as Reclamos {
+    component "REST Auth, Ciudadanos,\nReclamos y Cuadrillas\nSOAP /ws" as ApiReclamos
+    component "SvcAuth, SvcCiudadanos,\nSvcReclamos y SvcCuadrillas\nFactories y GeoClient" as ServiciosReclamos
+    component "ConsumidorCuadrillas\ncuadrillas.eventos" as Cuadrillas
+    component "Broker" as BrokerReclamos
+    component "Repositorios\nesquema compartido" as ReposReclamos
+}
+
+node "Zonas/Resumenes e IA\nHTTP 8081\nticketera-ia.jar" as IA {
+    component "REST /resumen-zona\nJWT, rol ADMIN" as ApiIA
+    component "SvcIA, Strategies,\nDetectorDeDuplicados,\nCacheResumenes y LlmClient" as ServiciosIA
+    component "ConsumidorIA\nia.eventos" as ConsumidorIA
+    component "Broker" as BrokerIA
+    component "ReclamoRepository\nBarrioRepository\nEventoProcesadoRepository" as ReposIA
+}
+
+queue "RabbitMQ\nticketera.eventos\ncuadrillas.eventos / ia.eventos" as Rabbit
+database "PostgreSQL\nesquema y migraciones compartidos" as DB
+cloud "Nominatim" as Geo
+cloud "Gemini" as Gemini
+
+Cliente --> ApiReclamos : REST / SOAP\nlogin emite JWT
+Cliente --> ApiIA : REST + Bearer JWT
+ApiReclamos --> ServiciosReclamos
+ApiIA --> ServiciosIA
+ServiciosReclamos --> BrokerReclamos : creado, asignado,\nresuelto, estado_cambiado
+ServiciosIA --> BrokerIA : validado, zona.resumen
+BrokerReclamos --> Rabbit
+BrokerIA --> Rabbit
+Rabbit --> Cuadrillas : validado, resuelto
+Rabbit --> ConsumidorIA : reclamo.#
+Cuadrillas --> ServiciosReclamos
+ConsumidorIA --> ServiciosIA
+ServiciosReclamos --> ReposReclamos
+ServiciosIA --> ReposIA
+ReposReclamos --> DB
+ReposIA --> DB : consultas + score\ny marcado de duplicados
+ServiciosReclamos --> Geo : HTTPS
+ServiciosIA --> Gemini : HTTPS
+
+note bottom of DB
+  Relaciones JPA y acceso a PostgreSQL conservados.
+  Cada proceso usa las entidades del mismo esquema.
+  Idempotencia por (event_id, consumidor).
+end note
+
+note bottom of IA
+  Mismo JWT_SECRET que Reclamos.
+  Cache local al proceso de IA.
+  Arranques propios; Docker Compose separado pendiente.
+end note
+@enduml

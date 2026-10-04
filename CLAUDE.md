@@ -35,24 +35,29 @@ Endpoint `/ws`, WSDL en `/ws/reclamos.wsdl`. Es un servicio propio para
 integraciones externas: NO es un sistema legado.
 
 ## Arquitectura: decision de despliegue
-**Monolito modular, con base de datos compartida, pensado para evolucionar a
-microservicios.**
-- Un solo artefacto (`ticketera-backend.jar`) en un solo contenedor (`app`).
-  Los "Servicios" de los diagramas (Reclamos, Ciudadanos, Cuadrillas, IA) son
-  modulos dentro de ese JAR, no procesos separados.
+**Arranque integrado o dos aplicaciones independientes, con PostgreSQL compartido.**
+- Modo integrado: `TicketeraApplication` y `ticketera-backend.jar`, con todos
+  los modulos. El `docker-compose.yml` actual sigue usando este modo.
+- Aplicaciones separadas: los perfiles Maven `reclamos` e `ia` generan
+  `ticketera-reclamos.jar` y `ticketera-ia.jar`, con puntos de entrada propios.
+  Las clases en `aplicaciones/` registran explicitamente los componentes de
+  cada una mediante `@Import`; no se escanea toda la aplicacion integrada.
 - Una sola base PostgreSQL compartida por todos los modulos.
-- Los modulos se comunican de dos formas: llamadas en proceso (por ejemplo,
-  controlador -> servicio) y eventos por RabbitMQ entre el modulo que publica y
-  los observadores (SvcCuadrillas, SvcIA). La mensajeria es real aunque todo
-  corra en el mismo proceso: es la costura por donde se separaria un modulo.
-- Camino de evolucion (no implementado): extraer el modulo de IA a su propio
-  JAR/contenedor que consuma `ia.eventos` y exponga `/resumen-zona`, con su
-  propia base o solo lectura; los contratos de eventos (`Evento` con `version`)
-  ya estan pensados para eso. El Outbox pattern seria necesario en ese paso.
-- Motivo: el alcance del TP (un equipo, un despliegue, sin requisitos de
-  escalado independiente) no justifica el costo operativo de microservicios.
-- Todos los diagramas deben usar esta postura: nada de "microservicios" como
-  estado actual.
+- Reclamos contiene autenticacion, ciudadanos, cuadrillas, SOAP, Nominatim y
+  `ConsumidorCuadrillas`. IA contiene resumenes, ranking, cache, duplicados,
+  Gemini y `ConsumidorIA`. Dentro de cada aplicacion se mantienen las llamadas
+  en proceso; entre ellas se conservan los eventos de RabbitMQ.
+- IA lee reclamos y barrios, y escribe scoreCriticidad y la relacion de
+  duplicado: su acceso a PostgreSQL no es solo lectura. Las entidades del
+  esquema compartido mantienen sus relaciones JPA; IA no registra los
+  repositorios de usuarios, ciudadanos o cuadrillas.
+- Ambos procesos deben usar el mismo JWT_SECRET. IA valida el token sin
+  depender de SvcAuth ni de Permisos, que pertenecen a Reclamos.
+- Pendiente: Docker Compose con contenedores separados. Outbox y bases por
+  servicio siguen siendo posibles mejoras futuras, fuera del alcance actual.
+- Los diagramas 04 y 05 muestran el modo integrado; el 09 muestra las
+  aplicaciones separadas. Detalle de composicion, avances y comandos en
+  `docs/separacion-servicios.md`.
 
 ## Paquetes (base: com.municipio.ticketera)
 controller, service, repository, domain, patterns/{factory,strategy,observer},
