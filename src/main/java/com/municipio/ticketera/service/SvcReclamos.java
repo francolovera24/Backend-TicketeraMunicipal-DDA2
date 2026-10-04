@@ -117,7 +117,6 @@ public class SvcReclamos {
         log.info("reclamo.estado_cambiado", "reclamoId", id, "desde", anterior, "hacia", nuevoEstado);
 
         TipoEvento tipoEvento = switch (nuevoEstado) {
-            case ASIGNADO -> TipoEvento.RECLAMO_ASIGNADO;
             case RESUELTO -> TipoEvento.RECLAMO_RESUELTO;
             default -> TipoEvento.RECLAMO_ESTADO_CAMBIADO;
         };

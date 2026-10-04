@@ -135,6 +135,10 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
   Metodos: cambiarEstado, marcarUrgente, calcularAntiguedad (horas).
 - Estado: NUEVO, EN_ANALISIS, ASIGNADO, EN_PROCESO, RESUELTO, RECHAZADO, DUPLICADO.
   Reclamo tiene `reclamoOriginal` (si es DUPLICADO) y `marcarDuplicadoDe`.
+- `Reclamo.cambiarEstado` rechaza ASIGNADO y DUPLICADO. Esos estados requieren
+  `asignarCuadrilla` (cuadrilla no nula) o `marcarDuplicadoDe` respectivamente.
+  PUT /reclamos/{id}/estado con ASIGNADO devuelve 409; se debe usar
+  PUT /reclamos/{id}/asignar-cuadrilla. SvcCuadrillas publica reclamo.asignado.
 - TipoDeReclamo (enum con pesoRiesgo): CABLEADO 10, BACHEO 5, ALUMBRADO 6,
   ARBOLADO 2, RUIDOS_MOLESTOS 3. Sin metodos de negocio.
 - Ciudadano (historialReclamos, agregarReclamoAlHistorial), Barrio (catalogo,

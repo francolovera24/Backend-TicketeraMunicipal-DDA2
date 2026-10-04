@@ -27,7 +27,7 @@ node "RabbitMQ" {
 database "PostgreSQL\ntabla evento_procesado\nPK (event_id, consumidor)" as EP
 
 ' ---------- publicacion ----------
-SvcReclamos --> Broker : reclamo.creado (POST /reclamos)\nreclamo.asignado (PUT estado=ASIGNADO)\nreclamo.resuelto (PUT estado=RESUELTO)\nreclamo.estado_cambiado (otros cambios validos)
+SvcReclamos --> Broker : reclamo.creado (POST /reclamos)\nreclamo.resuelto (PUT estado=RESUELTO)\nreclamo.estado_cambiado (otros cambios validos)
 SvcIA --> Broker : reclamo.validado (no es duplicado)\nzona.resumen (resumen regenerado)
 SvcCuadrillas --> Broker : reclamo.asignado (asignacion de cuadrilla)
 Broker --> EX : publica despues del commit,\nmensaje persistente,\npublisher confirms
@@ -72,7 +72,7 @@ legend right
   | routing key | publica | colas que lo reciben |
   | reclamo.creado | SvcReclamos | ia.eventos |
   | reclamo.validado | SvcIA | cuadrillas.eventos, ia.eventos |
-  | reclamo.asignado | SvcCuadrillas, SvcReclamos | ia.eventos |
+  | reclamo.asignado | SvcCuadrillas | ia.eventos |
   | reclamo.resuelto | SvcReclamos | cuadrillas.eventos, ia.eventos |
   | reclamo.estado_cambiado | SvcReclamos | ia.eventos |
   | zona.resumen | SvcIA | (ninguna) |

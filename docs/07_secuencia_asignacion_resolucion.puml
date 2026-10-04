@@ -35,6 +35,11 @@ end
 
 == Asignacion manual (alternativa, desde el Panel) ==
 
+note over Panel, REST
+  ASIGNADO requiere una cuadrilla: PUT /reclamos/{id}/estado (ASIGNADO)
+  devuelve 409. La asignacion manual usa el endpoint siguiente.
+end note
+
 Operador -> Panel : asignarCuadrilla(idReclamo, idCuadrilla)
 Panel -> REST : GET /cuadrillas?especialidad=X&disponible=true
 REST --> Panel : cuadrillas libres

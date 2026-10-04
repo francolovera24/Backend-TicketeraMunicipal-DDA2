@@ -96,9 +96,12 @@ public class Reclamo {
         this.fechaActualizacion = this.fechaCreacion;
     }
 
-    /** DUPLICADO no se asigna a mano: requiere el original (ver marcarDuplicadoDe). */
+    /**
+     * ASIGNADO requiere asignarCuadrilla y DUPLICADO requiere marcarDuplicadoDe:
+     * no se pueden obtener esos estados sin su relacion de dominio.
+     */
     public void cambiarEstado(Estado nuevoEstado) {
-        if (nuevoEstado == Estado.DUPLICADO) {
+        if (nuevoEstado == Estado.ASIGNADO || nuevoEstado == Estado.DUPLICADO) {
             throw new TransicionInvalidaException(estado, nuevoEstado);
         }
         pasarA(nuevoEstado);
@@ -127,7 +130,10 @@ public class Reclamo {
 
     /** Asigna la cuadrilla y pasa el reclamo a ASIGNADO. */
     public void asignarCuadrilla(Cuadrilla cuadrillaAsignada) {
-        cambiarEstado(Estado.ASIGNADO);
+        if (cuadrillaAsignada == null) {
+            throw new IllegalArgumentException("La cuadrilla es obligatoria para asignar el reclamo");
+        }
+        pasarA(Estado.ASIGNADO);
         this.cuadrilla = cuadrillaAsignada;
     }
 
