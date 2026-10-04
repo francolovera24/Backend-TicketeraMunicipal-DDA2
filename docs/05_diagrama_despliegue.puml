@@ -1,5 +1,5 @@
 @startuml
-title Ticketera Municipal - despliegue (monolito modular)
+title Ticketera Municipal - despliegue separado
 
 node "Navegador / App del vecino" as ClienteVecino {
     artifact "WebApp (SPA)" as artWebApp
@@ -13,10 +13,14 @@ node "Sistema externo" as ClienteSoap {
     artifact "Cliente SOAP\n(integracion)" as artSoap
 }
 
-node "Servidor Docker Host (docker-compose, red bridge ticketera-red)" as DockerHost {
+node "Servidor Docker Host\n(docker-compose.yml, red bridge del proyecto)" as DockerHost {
 
-    node "Contenedor: app" as AppContainer {
-        artifact "ticketera-backend.jar (Spring Boot)\nmonolito modular: modulos Reclamos,\nCiudadanos, Cuadrillas, IA, SOAP y\nmensajeria en un solo proceso" as artApp
+    node "Contenedor: reclamos\nHTTP 8080" as ReclamosContainer {
+        artifact "ticketera-reclamos.jar (Spring Boot)\nAuth, Ciudadanos, Reclamos, Cuadrillas,\nSOAP, Nominatim y ConsumidorCuadrillas" as artReclamos
+    }
+
+    node "Contenedor: ia\nHTTP 8081" as IAContainer {
+        artifact "ticketera-ia.jar (Spring Boot)\nResumenes, ranking, duplicados,\nGemini y ConsumidorIA\ncache en memoria" as artIA
     }
 
     node "Contenedor: postgres" as PgContainer {
@@ -40,13 +44,17 @@ cloud "Proveedor de Geolocalizacion" as NodoGeo {
     artifact "API Nominatim / OSM" as artGeo
 }
 
-note bottom of AppContainer
-  Docker Compose actual: modo integrado.
-  Existen ejecutables separados de Reclamos e IA;
-  su despliegue en contenedores esta pendiente.
-  Secretos (contrasenas, LLM_API_KEY, JWT_SECRET)
-  solo por variables de entorno desde .env.
-  Las requests de gestion llevan un JWT de rol ADMIN.
+note bottom of ReclamosContainer
+  JWT_SECRET compartido; login emite el token.
+  Secretos por entorno, sin claves en las imagenes.
+  Healthchecks de PostgreSQL/RabbitMQ antes del arranque.
+  Modo integrado alternativo en diagrama 05a.
+end note
+
+note bottom of IAContainer
+  Valida JWT y exige ADMIN para el resumen.
+  LLM_API_KEY llega solo a este contenedor.
+  Eventos persistentes por RabbitMQ.
 end note
 
 note bottom of PgContainer
@@ -57,13 +65,16 @@ note bottom of MqContainer
   Volumen nombrado rabbitmq_data
 end note
 
-ClienteVecino --> AppContainer : HTTP 8080\n(REST JSON)
-ClienteMunicipal --> AppContainer : HTTP 8080\n(REST JSON)
-ClienteSoap --> AppContainer : HTTP 8080\n(SOAP /ws, WSDL /ws/reclamos.wsdl)
+ClienteVecino --> ReclamosContainer : HTTP 8080\n(REST JSON)
+ClienteMunicipal --> ReclamosContainer : HTTP 8080\n(REST JSON + JWT)
+ClienteMunicipal --> IAContainer : HTTP 8081\n(resumen + JWT)
+ClienteSoap --> ReclamosContainer : HTTP 8080\n(SOAP /ws, WSDL /ws/reclamos.wsdl)
 
-AppContainer --> PgContainer : JDBC 5432
-AppContainer --> MqContainer : AMQP 5672
-AppContainer ..> RedisContainer : reservado\n(la cache hoy es en memoria)
-AppContainer --> NodoLLM : HTTPS (API REST)
-AppContainer --> NodoGeo : HTTPS (API REST)
+ReclamosContainer --> PgContainer : JDBC 5432
+IAContainer --> PgContainer : JDBC 5432
+ReclamosContainer <--> MqContainer : AMQP 5672
+IAContainer <--> MqContainer : AMQP 5672
+IAContainer ..> RedisContainer : reservado\n(sin conexion actual)
+IAContainer --> NodoLLM : HTTPS (API REST)
+ReclamosContainer --> NodoGeo : HTTPS (API REST)
 @enduml

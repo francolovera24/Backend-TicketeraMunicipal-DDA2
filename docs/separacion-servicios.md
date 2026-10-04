@@ -6,7 +6,7 @@
 |---|---|---|
 | Consumidores independientes | Implementado | ConsumidorIA y ConsumidorCuadrillas dependen solo de su observador. ConsumidorEventos conserva transacciones, idempotencia y tratamiento de errores. |
 | Aplicaciones independientes | Implementado | ReclamosApplication e IAApplication tienen componentes y ejecutables propios, con PostgreSQL compartido. |
-| Despliegue separado con Docker Compose | Pendiente | Integrar los dos ejecutables como contenedores y verificar el flujo entre procesos. |
+| Despliegue separado con Docker Compose | Implementado | Reclamos e IA tienen contenedores propios, healthchecks y configuracion por modulo. El modo integrado conserva su archivo Compose. |
 
 ## Composicion
 
@@ -111,9 +111,45 @@ disponible en cada aplicacion y publica sus endpoints. El token se obtiene en
 Reclamos y se envia como Authorization: Bearer al consultar el resumen de IA.
 
 El modo integrado sigue usando `mvn package` y `ticketera-backend.jar`.
-El Dockerfile y Docker Compose actuales levantan ese modo. No ejecutar el modo
-integrado y las aplicaciones separadas contra las mismas colas a la vez: sus
+Dockerfile conserva ese modo como valor por defecto de MODULO. No ejecutar el
+modo integrado y las aplicaciones separadas contra las mismas colas a la vez: sus
 consumidores competirian por los mensajes destinados a cada modulo.
+
+## Despliegue con Docker Compose
+
+`docker-compose.yml` construye el mismo Dockerfile con MODULO=reclamos y
+MODULO=ia. Cada imagen selecciona su perfil Maven y su clase principal, y
+ejecuta el JAR como usuario ticketera. El build excluye .env, sus variantes,
+logs y archivos locales del contexto. No modifica la logica de negocio.
+
+```bash
+docker compose up --build --wait
+```
+
+Reclamos publica HTTP 8080 y recibe las variables GEO_* de Nominatim. IA publica
+HTTP 8081 y recibe IA_GENERADOR, LLM_* y DUPLICADOS_HABILITADO. Solo el contenedor
+de IA recibe LLM_API_KEY. JWT_SECRET, zona horaria, PostgreSQL y RabbitMQ son
+compartidos. Las aplicaciones esperan los healthchecks de PostgreSQL/RabbitMQ;
+sus propios healthchecks consultan OpenAPI. Redis sigue reservado, sin conexion
+de la aplicacion ni cambios en la cache en memoria.
+
+Los nombres de contenedores, red y volumenes usan el proyecto Compose para
+permitir entornos aislados. APP_PORT e IA_PORT cambian los puertos publicados;
+POSTGRES_PORT, RABBITMQ_PORT, RABBITMQ_ADMIN_PORT y REDIS_PORT hacen lo mismo
+para infraestructura. Dentro de la red se usan postgres:5432 y rabbitmq:5672,
+independientemente de los puertos del host.
+
+El modo integrado se ejecuta con:
+
+```bash
+docker compose -f docker-compose.integrado.yml up --build --wait
+```
+
+Antes de cambiar de modo, detener el anterior con su archivo Compose y `down`,
+sin --volumes. Con el mismo nombre de proyecto se conservan
+los volumenes postgres_data y rabbitmq_data. No hay proxy HTTP: el cliente
+consulta el resumen en el puerto de IA y el resto de los endpoints en Reclamos.
+No se cambian las rutas, cuerpos ni reglas de autorizacion.
 
 ## Verificacion
 
@@ -127,6 +163,31 @@ verifica score persistido por IA, duplicado sin cuadrilla, asignacion automatica
 liberacion y reasignacion de un equipo e invalidacion del resumen filtrado.
 Las pruebas del modo integrado siguen verificando los flujos existentes.
 
-Los diagramas 04 y 05 describen el modo integrado. El 09 muestra los limites de
-las aplicaciones separadas; el despliegue en contenedores se documentara al
-incorporarlo a Docker Compose.
+`DespliegueComposeIT` construye y levanta los archivos Compose reales, con
+proyectos y puertos aleatorios, datos nuevos y credenciales ficticias. No lee
+.env, usa IA stub y desactiva geolocalizacion. Se ejecuta explicitamente:
+
+```bash
+mvn test -Dtest=DespliegueComposeIT
+```
+
+Necesita Docker Compose en PATH o la propiedad docker.bin con la ruta al
+ejecutable. Verifica endpoints exclusivos y JWT entre contenedores, el flujo
+de duplicados/asignacion/liberacion/reasignacion, SOAP y cache. Detiene solo IA,
+crea un reclamo mediante Reclamos, comprueba el mensaje retenido en RabbitMQ
+y arranca IA para verificar su procesamiento. Tambien construye y arranca el
+modo integrado. Al terminar elimina solo los recursos de sus propios proyectos.
+Guarda evidencia sin tokens ni claves en target/evidencias/compose.json y logs
+locales en target/. Estos archivos no se versionan.
+
+Verificacion del 2026-10-04: `DespliegueComposeIT` completo sus cuatro pruebas
+sin fallos, errores ni omisiones, construyendo las tres imagenes (Reclamos,
+IA e integrado). La suite habitual completo 206 pruebas con el mismo resultado.
+Se confirmo que un reclamo creado con IA detenida permanece NUEVO y su evento
+queda en RabbitMQ; al volver IA, recibe score y pasa a ASIGNADO con cuadrilla.
+Estas pruebas verifican el despliegue y los contratos con IA stub; no realizan
+llamadas reales a Gemini o Nominatim.
+
+El diagrama 04 conserva la vista integrada de componentes, el 05 describe el
+despliegue separado, el 05a conserva el integrado y el 09 muestra los limites
+de las aplicaciones.

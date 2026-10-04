@@ -15,8 +15,8 @@ El backend admite un arranque integrado y dos aplicaciones separadas:
 
 Ambas aplicaciones usan PostgreSQL compartido y se comunican por eventos en
 RabbitMQ. Cada arranque registra explicitamente sus componentes. El modo
-integrado conserva todos los modulos y sigue siendo el usado por el
-`docker-compose.yml` actual. El despliegue separado con Compose esta pendiente.
+integrado conserva todos los modulos. `docker-compose.yml` levanta las dos
+aplicaciones; `docker-compose.integrado.yml` conserva el despliegue integrado.
 Ver [composicion, avances y ejecucion](docs/separacion-servicios.md),
 `CLAUDE.md` y el diagrama `docs/09_diagrama_aplicaciones.puml`.
 
@@ -33,24 +33,51 @@ detalle (`01a` dominio, `01b` patrones, `01c` servicios, `01d` seguridad).
 
 ## Como correrlo
 
+Si el despliegue integrado anterior esta corriendo, detenerlo primero con
+`docker compose -f docker-compose.integrado.yml down`, sin borrar volumenes.
+
 ```bash
 cp .env.example .env   # ajustar las claves
 docker compose up --build
 ```
 
-Levanta cuatro contenedores:
+Levanta cinco contenedores. Sus nombres, red y volumenes usan el nombre del
+proyecto Compose; los servicios se encuentran por nombre dentro de su red:
 
 | Contenedor | Puerto | Uso |
 |---|---|---|
-| `ticketera-app` | 8080 | Spring Boot |
-| `ticketera-postgres` | 5432 | PostgreSQL 16 (esquema con Flyway) |
-| `ticketera-rabbitmq` | 5672 / 15672 | RabbitMQ 3 (panel en http://localhost:15672, usuario/clave de `.env`) |
-| `ticketera-redis` | 6379 | Redis 7 (reservado, la cache hoy es en memoria) |
+| `reclamos` | 8080 | REST operativo, JWT, SOAP y consumidor de cuadrillas |
+| `ia` | 8081 | Resumenes, ranking, duplicados y consumidor de IA |
+| `postgres` | 5432 | PostgreSQL 16 (esquema compartido con Flyway) |
+| `rabbitmq` | 5672 / 15672 | RabbitMQ 3 (panel en http://localhost:15672, usuario/clave de `.env`) |
+| `redis` | 6379 | Redis 7 (reservado, la cache hoy es en memoria) |
 
-La app espera a que postgres y rabbitmq esten *healthy* antes de arrancar.
+Ambas aplicaciones esperan a que postgres y rabbitmq esten *healthy* antes de
+arrancar. Sus healthchecks comprueban que OpenAPI responde. Comparten la base,
+el broker y `JWT_SECRET`; solo IA recibe `LLM_API_KEY` y solo Reclamos configura
+Nominatim. `APP_PORT` e `IA_PORT` cambian los puertos publicados.
 
-- Swagger UI: http://localhost:8080/swagger-ui.html
-- OpenAPI (JSON): http://localhost:8080/v3/api-docs
+- Swagger/OpenAPI de Reclamos: http://localhost:8080/swagger-ui.html y
+  http://localhost:8080/v3/api-docs
+- Swagger/OpenAPI de IA: http://localhost:8081/swagger-ui.html y
+  http://localhost:8081/v3/api-docs
+
+Para ejecutar el modo integrado, detener primero el separado sin borrar datos:
+
+```bash
+docker compose down
+docker compose -f docker-compose.integrado.yml up --build
+```
+
+En ese modo tambien `/resumen-zona` usa HTTP 8080. Para volver al separado:
+
+```bash
+docker compose -f docker-compose.integrado.yml down
+docker compose up --build
+```
+
+Ambos archivos usan los mismos volumenes cuando se ejecutan con el mismo
+nombre de proyecto. No levantar los dos modos contra las mismas colas a la vez.
 
 ### Ejecutar las aplicaciones separadas con Java
 
@@ -199,8 +226,8 @@ curl http://localhost:8080/ciudadanos/yo -H "Authorization: Bearer $TOKEN_VECINO
 Resumen priorizado de un barrio (ADMIN), con filtros opcionales por tipo y por fecha de
 creacion (desde el inicio de ese dia, hora de Buenos Aires):
 ```bash
-curl "http://localhost:8080/resumen-zona?barrio=Palermo" -H "Authorization: Bearer $TOKEN"
-curl "http://localhost:8080/resumen-zona?barrio=Palermo&tipo=BACHEO&desde=2026-09-01" \
+curl "http://localhost:8081/resumen-zona?barrio=Palermo" -H "Authorization: Bearer $TOKEN"
+curl "http://localhost:8081/resumen-zona?barrio=Palermo&tipo=BACHEO&desde=2026-09-01" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -310,6 +337,20 @@ mvn test
 Requiere Java 17, Maven y Docker corriendo (los de integracion usan
 Testcontainers). La primera vez descarga las imagenes de Postgres y RabbitMQ.
 El build de Docker (`docker compose up --build`) no corre los tests.
+
+Para verificar el despliegue real en contenedores:
+
+```bash
+mvn test -Dtest=DespliegueComposeIT
+```
+
+Esta prueba necesita Docker Compose en PATH (o `-Ddocker.bin=/ruta/a/docker`).
+Construye las imagenes, usa proyectos y puertos aleatorios, y elimina solo sus
+contenedores y volumenes al terminar. No carga `.env` ni usa APIs externas.
+Comprueba ambos despliegues, contratos, JWT, duplicados, cuadrillas, SOAP,
+cache y recuperacion de eventos tras detener y arrancar IA. La evidencia sin
+tokens ni claves se guarda en `target/evidencias/compose.json`; los logs quedan
+en `target/`. No forma parte de la suite habitual por terminar en `IT`.
 
 - **Unitarios** (sin Spring ni Docker): fabricas, estrategias de criticidad,
   transiciones de estado, cache con TTL, detector de duplicados, comparador

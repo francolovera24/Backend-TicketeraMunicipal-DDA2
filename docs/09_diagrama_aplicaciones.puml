@@ -54,6 +54,6 @@ end note
 note bottom of IA
   Mismo JWT_SECRET que Reclamos.
   Cache local al proceso de IA.
-  Arranques propios; Docker Compose separado pendiente.
+  Arranques y contenedores propios en Docker Compose.
 end note
 @enduml

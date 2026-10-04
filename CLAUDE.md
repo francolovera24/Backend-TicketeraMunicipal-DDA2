@@ -13,7 +13,8 @@ diseno. Si algo del codigo contradice un diagrama, senalalo antes de decidir.
 - Java 17, Spring Boot 3.3.x, Maven
 - Spring Web, Spring Data JPA, Spring AMQP, Validation, springdoc-openapi
 - PostgreSQL 16, RabbitMQ 3 (con management), Redis 7 (reservado, opcional)
-- Docker: Dockerfile multi-etapa + docker-compose (app, postgres, rabbitmq, redis)
+- Docker: Dockerfile multi-etapa + Compose (reclamos, ia, postgres, rabbitmq, redis).
+  Modo integrado alternativo con docker-compose.integrado.yml.
 - Configuracion externalizada por variables de entorno. Sin secretos en el repo.
 
 ## Alcance
@@ -37,7 +38,7 @@ integraciones externas: NO es un sistema legado.
 ## Arquitectura: decision de despliegue
 **Arranque integrado o dos aplicaciones independientes, con PostgreSQL compartido.**
 - Modo integrado: `TicketeraApplication` y `ticketera-backend.jar`, con todos
-  los modulos. El `docker-compose.yml` actual sigue usando este modo.
+  los modulos. Compose lo conserva en `docker-compose.integrado.yml`.
 - Aplicaciones separadas: los perfiles Maven `reclamos` e `ia` generan
   `ticketera-reclamos.jar` y `ticketera-ia.jar`, con puntos de entrada propios.
   Las clases en `aplicaciones/` registran explicitamente los componentes de
@@ -53,10 +54,15 @@ integraciones externas: NO es un sistema legado.
   repositorios de usuarios, ciudadanos o cuadrillas.
 - Ambos procesos deben usar el mismo JWT_SECRET. IA valida el token sin
   depender de SvcAuth ni de Permisos, que pertenecen a Reclamos.
-- Pendiente: Docker Compose con contenedores separados. Outbox y bases por
+- `docker-compose.yml` ejecuta Reclamos e IA en contenedores independientes.
+  Dockerfile selecciona el perfil Maven mediante MODULO; su valor por defecto
+  sigue siendo integrado. Solo IA recibe la clave de Gemini. Los nombres de
+  contenedores, red y volumenes quedan dentro del proyecto Compose.
+- Outbox y bases por
   servicio siguen siendo posibles mejoras futuras, fuera del alcance actual.
-- Los diagramas 04 y 05 muestran el modo integrado; el 09 muestra las
-  aplicaciones separadas. Detalle de composicion, avances y comandos en
+- El diagrama 04 conserva la vista integrada de componentes; el 05 muestra el
+  despliegue separado, el 05a el integrado y el 09 los limites de aplicaciones.
+  Detalle de composicion, avances y comandos en
   `docs/separacion-servicios.md`.
 
 ## Paquetes (base: com.municipio.ticketera)

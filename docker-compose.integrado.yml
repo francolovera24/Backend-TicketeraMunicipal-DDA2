@@ -2,53 +2,11 @@
 # No hay secretos en el repo: las variables sensibles (contrasenas, LLM_API_KEY)
 # solo llegan por entorno. Las obligatorias cortan el arranque si faltan (:?).
 services:
-  reclamos:
-    build:
-      context: .
-      args:
-        MODULO: reclamos
+  app:
+    build: .
     ports:
       - "${APP_PORT:-8080}:8080"
     environment:
-      SERVER_PORT: 8080
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${POSTGRES_DB:?definir POSTGRES_DB en .env}
-      DB_USER: ${POSTGRES_USER:?definir POSTGRES_USER en .env}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD en .env}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: ${RABBITMQ_USER:?definir RABBITMQ_USER en .env}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?definir RABBITMQ_PASSWORD en .env}
-      GEO_HABILITADO: ${GEO_HABILITADO:-true}
-      GEO_CONTACTO: ${GEO_CONTACTO:-}
-      ZONA_HORARIA: ${ZONA_HORARIA:-America/Argentina/Buenos_Aires}
-      # Clave de firma de los JWT. El default es SOLO para desarrollo (la app lo avisa en el log).
-      JWT_SECRET: ${JWT_SECRET:-dev-solo-desarrollo-cambiar-en-produccion-0123456789}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - ticketera
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/v3/api-docs"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
-      retries: 12
-
-  ia:
-    build:
-      context: .
-      args:
-        MODULO: ia
-    ports:
-      - "${IA_PORT:-8081}:8081"
-    environment:
-      SERVER_PORT: 8081
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB:?definir POSTGRES_DB en .env}
@@ -62,8 +20,11 @@ services:
       LLM_URL: ${LLM_URL:-https://generativelanguage.googleapis.com/v1beta}
       LLM_MODEL: ${LLM_MODEL:-gemini-3.8-flash}
       LLM_API_KEY: ${LLM_API_KEY:-}
+      GEO_HABILITADO: ${GEO_HABILITADO:-true}
+      GEO_CONTACTO: ${GEO_CONTACTO:-}
       DUPLICADOS_HABILITADO: ${DUPLICADOS_HABILITADO:-true}
       ZONA_HORARIA: ${ZONA_HORARIA:-America/Argentina/Buenos_Aires}
+      # Clave de firma de los JWT. El default es SOLO para desarrollo (la app lo avisa en el log).
       JWT_SECRET: ${JWT_SECRET:-dev-solo-desarrollo-cambiar-en-produccion-0123456789}
     depends_on:
       postgres:
@@ -74,7 +35,7 @@ services:
       - ticketera
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/v3/api-docs"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/v3/api-docs"]
       interval: 10s
       timeout: 5s
       start_period: 60s
