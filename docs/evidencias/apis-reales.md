@@ -2,9 +2,11 @@
 
 Fecha: 4 de octubre de 2026.
 
-Aplicacion Spring Boot ejecutada por HTTP con PostgreSQL 16 y RabbitMQ 3
-reales mediante Testcontainers. Los datos de los ciudadanos y reclamos son
-sinteticos. Las credenciales no forman parte de las evidencias.
+La comprobacion inicial uso la aplicacion integrada por HTTP con PostgreSQL 16
+y RabbitMQ 3 mediante Testcontainers. Tras separar las aplicaciones, las
+mismas pruebas se adaptaron para levantar Docker Compose y consultar Reclamos
+e IA en contenedores independientes. Los datos son sinteticos. Las credenciales
+no forman parte de las evidencias.
 
 ## Nominatim
 
@@ -64,8 +66,8 @@ Los detalles de configuracion estan en el README. Cada prueba exitosa guarda
 los datos de entrada y la respuesta en `target/evidencias/`, sin headers ni
 claves. Los JSON son locales y no se incluyen en Git.
 
-La suite habitual completo 200 pruebas sin fallos, errores ni omisiones.
-Las tres pruebas externas tambien pasaron sin fallos ni omisiones. La disponibilidad
+La comprobacion inicial completo 200 pruebas habituales y tres externas
+sin fallos, errores ni omisiones. La disponibilidad
 de las APIs, los modelos, las cuotas y las respuestas puede variar entre
 ejecuciones.
 
@@ -75,3 +77,29 @@ como no duplicado y continuo su validacion y asignacion. La prueba externa
 fallo porque no obtuvo la clasificacion esperada; no se considero esa
 respuesta de respaldo como una validacion exitosa del modelo.
 Un ultimo intento de la misma prueba paso y vinculo correctamente el duplicado.
+
+## Comprobacion del despliegue separado
+
+Ejecucion final del 4 de octubre de 2026 con los archivos Compose y el Dockerfile
+del repositorio: cuatro pruebas de despliegue y tres de APIs reales, sin fallos,
+errores ni omisiones. Se reutiliza ComposePruebas para construir las imagenes,
+crear entornos aislados y guardar logs locales antes de eliminar sus recursos.
+La suite habitual completo 206 pruebas sin fallos, errores ni omisiones.
+
+- Nominatim, desde Reclamos: HTTP 201 para Avenida Cabildo 2040 sin barrio ni
+  coordenadas; Belgrano, latitud -34.5627267 y longitud -58.4564287. La consulta
+  posterior devolvio los mismos datos.
+- Gemini, desde IA, modelo gemini-3.8-flash: HTTP 200, generadoPorIa=true,
+  ranking con CABLEADO score 100 seguido de BACHEO score 25. El texto describio
+  el riesgo electrico y el pozo en la calzada, priorizando el primero.
+- Duplicados con Gemini: el segundo reporte del cable quedo DUPLICADO,
+  vinculado al original y sin cuadrilla.
+- Autenticacion: el resumen acepto el JWT ADMIN emitido en el contenedor de
+  Reclamos. Las pruebas de despliegue cubren tambien 401/403 y JWT invalido,
+  contratos OpenAPI exclusivos, SOAP, cache, eventos y recuperacion tras
+  reiniciar IA.
+
+Los JSON actuales contienen despliegue=separado para distinguirlos de la
+ejecucion inicial. No incluyen tokens, claves ni cabeceras. La clave se toma
+del entorno de Maven y llega solo a IA; no se escribe en el archivo .env
+temporal de pruebas. La suite habitual sigue sin consultar APIs externas.

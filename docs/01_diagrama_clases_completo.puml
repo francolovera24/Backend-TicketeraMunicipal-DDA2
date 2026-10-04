@@ -3,7 +3,7 @@
 ' sistema (solo atributos y metodos importantes). Las vistas de detalle
 ' estan en 01a..01d.
 
-title Ticketera Municipal - diagrama de clases (monolito modular)
+title Ticketera Municipal - diagrama de clases
 
 hide empty members
 skinparam packageStyle rectangle
@@ -31,7 +31,7 @@ package "Capa Presentacion" {
     }
 }
 
-' ==================== CAPA SERVICIOS (monolito modular) ====================
+' ==================== CAPA SERVICIOS ====================
 
 package "Capa Servicios (REST y SOAP)" {
     class REST_Reclamos <<REST API>> {

@@ -62,8 +62,17 @@ integraciones externas: NO es un sistema legado.
   servicio siguen siendo posibles mejoras futuras, fuera del alcance actual.
 - El diagrama 04 conserva la vista integrada de componentes; el 05 muestra el
   despliegue separado, el 05a el integrado y el 09 los limites de aplicaciones.
+  El 06 muestra los productores, brokers y listeners de cada aplicacion.
   Detalle de composicion, avances y comandos en
   `docs/separacion-servicios.md`.
+
+Verificacion: `mvn test` ejecuta las pruebas habituales con IA stub y sin APIs
+externas. `DespliegueComposeIT` comprueba los dos modos de despliegue, OpenAPI,
+JWT, SOAP, eventos, cache y reinicio de IA. `NominatimRealIT` y `GeminiRealIT`
+usan el Compose separado y las APIs oficiales; se seleccionan explicitamente
+con `-Dtest`, requieren Docker Compose y Gemini toma LLM_API_KEY del entorno.
+ComposePruebas comparte la preparacion y no escribe esa clave en sus archivos
+temporales. Las evidencias y logs quedan en target/, fuera de Git.
 
 ## Paquetes (base: com.municipio.ticketera)
 controller, service, repository, domain, patterns/{factory,strategy,observer},

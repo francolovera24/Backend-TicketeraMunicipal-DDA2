@@ -7,6 +7,7 @@
 | Consumidores independientes | Implementado | ConsumidorIA y ConsumidorCuadrillas dependen solo de su observador. ConsumidorEventos conserva transacciones, idempotencia y tratamiento de errores. |
 | Aplicaciones independientes | Implementado | ReclamosApplication e IAApplication tienen componentes y ejecutables propios, con PostgreSQL compartido. |
 | Despliegue separado con Docker Compose | Implementado | Reclamos e IA tienen contenedores propios, healthchecks y configuracion por modulo. El modo integrado conserva su archivo Compose. |
+| Verificacion y documentacion del sistema separado | Comprobado | Contratos OpenAPI, seguridad, eventos, resumenes y cache; Nominatim y Gemini reales desde los contenedores. README y diagramas describen el arranque y su demostracion. |
 
 ## Composicion
 
@@ -185,9 +186,37 @@ sin fallos, errores ni omisiones, construyendo las tres imagenes (Reclamos,
 IA e integrado). La suite habitual completo 206 pruebas con el mismo resultado.
 Se confirmo que un reclamo creado con IA detenida permanece NUEVO y su evento
 queda en RabbitMQ; al volver IA, recibe score y pasa a ASIGNADO con cuadrilla.
-Estas pruebas verifican el despliegue y los contratos con IA stub; no realizan
-llamadas reales a Gemini o Nominatim.
+DespliegueComposeIT verifica los flujos con IA stub, sin llamadas externas.
 
-El diagrama 04 conserva la vista integrada de componentes, el 05 describe el
-despliegue separado, el 05a conserva el integrado y el 09 muestra los limites
-de las aplicaciones.
+NominatimRealIT y GeminiRealIT usan la misma preparacion Compose, cada clase
+con datos nuevos. Se adaptaron para consultar Reclamos en su contenedor y
+el resumen en IA usando el JWT emitido por Reclamos. Las APIs se consultan
+desde los contenedores reales; no se sustituyen por servidores simulados.
+Nominatim activa GEO_HABILITADO y usa IA stub; Gemini activa llm y desactiva
+geolocalizacion. La clave debe estar en LLM_API_KEY del entorno de Maven,
+solo pasa al contenedor de IA y no se escribe en el .env temporal de pruebas.
+
+```bash
+mvn test -Dtest=DespliegueComposeIT,NominatimRealIT,GeminiRealIT
+```
+
+En la verificacion final del 2026-10-04 pasaron las siete pruebas sin fallos,
+errores ni omisiones. La suite habitual volvio a completar 206 pruebas con
+el mismo resultado. OpenAPI publico solo los endpoints propios de cada
+aplicacion; IA rechazo tokens ausentes/invalidos con 401 y vecinos con 403,
+y acepto el ADMIN emitido en Reclamos. Nominatim completo Belgrano y las
+coordenadas de Avenida Cabildo 2040. Gemini genero el texto sin fallback,
+priorizando cableado (100) antes de bacheo (25), y vinculo los dos reportes
+del mismo cable como DUPLICADO sin cuadrilla. La revision del texto confirmo
+la correspondencia con los datos de prueba.
+
+Los JSON de APIs incluyen despliegue=separado y quedan en target/evidencias/;
+los logs de contenedores son locales. Resultados y limitaciones de las APIs
+en docs/evidencias/apis-reales.md. El README incluye un recorrido para levantar
+y demostrar el sistema sin depender de las pruebas automatizadas.
+
+Los diagramas de clases mantienen el codigo compartido. El 04 conserva la
+vista integrada de componentes, el 05 describe el despliegue separado, el
+05a conserva el integrado, el 06 muestra eventos y brokers propios de cada
+aplicacion, y el 09 muestra sus limites. Los contratos, entidades, patrones
+y reglas de negocio no cambian en esta verificacion.

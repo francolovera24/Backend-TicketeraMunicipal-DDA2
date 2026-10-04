@@ -3,7 +3,7 @@
 ' Detalle (atributos, metodos, patrones) en:
 '   01a_clases_dominio, 01b_clases_patrones, 01c_clases_servicios, 01d_clases_seguridad
 
-title Ticketera Municipal - diagrama de clases: vista general (monolito modular)
+title Ticketera Municipal - diagrama de clases: vista general
 
 hide members
 hide empty methods

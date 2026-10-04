@@ -10,7 +10,6 @@ import com.municipio.ticketera.dto.CiudadanoResponse;
 import com.municipio.ticketera.dto.ReclamoResponse;
 import com.municipio.ticketera.dto.TokenResponse;
 import com.municipio.ticketera.dto.UsuarioResponse;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,7 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
@@ -30,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -44,9 +41,9 @@ class DespliegueComposeIT {
 
     private static final Duration ESPERA_EVENTOS = Duration.ofSeconds(40);
     private final Path raiz = Path.of(System.getProperty("user.dir"));
-    private final List<Compose> entornos = new ArrayList<>();
+    private final List<ComposePruebas> entornos = new ArrayList<>();
     private final Map<String, Object> evidencia = new LinkedHashMap<>();
-    private Compose separado;
+    private ComposePruebas separado;
     private TestRestTemplate reclamos;
     private TestRestTemplate ia;
 
@@ -60,9 +57,9 @@ class DespliegueComposeIT {
     @AfterAll
     void guardarEvidenciaYLiberarRecursos() throws Exception {
         IOException error = null;
-        for (Compose entorno : entornos) {
+        for (ComposePruebas entorno : entornos) {
             try {
-                entorno.ejecutar("down", "--volumes", "--remove-orphans");
+                entorno.close();
             } catch (IOException ex) {
                 if (error == null) error = ex;
                 else error.addSuppressed(ex);
@@ -92,6 +89,18 @@ class DespliegueComposeIT {
         var anonimo = ia.getForEntity("/resumen-zona?barrio=Palermo", String.class);
         assertThat(anonimo.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(anonimo.getHeaders().getFirst(HttpHeaders.WWW_AUTHENTICATE)).isEqualTo("Bearer");
+        assertThat(ia.exchange("/resumen-zona?barrio=Palermo", HttpMethod.GET, autorizado(null, "token-invalido"),
+                String.class).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        var json = new ObjectMapper();
+        var contratosReclamos = json.readTree(reclamos.getForObject("/v3/api-docs", String.class));
+        var contratosIA = json.readTree(ia.getForObject("/v3/api-docs", String.class));
+        assertThat(contratosReclamos.path("paths").has("/reclamos")).isTrue();
+        assertThat(contratosReclamos.path("paths").has("/auth/login")).isTrue();
+        assertThat(contratosReclamos.path("paths").has("/resumen-zona")).isFalse();
+        assertThat(contratosIA.path("paths").size()).isEqualTo(1);
+        assertThat(contratosIA.path("paths").has("/resumen-zona")).isTrue();
+        assertThat(contratosIA.path("components").path("securitySchemes").path("bearerJwt").path("scheme").asText())
+                .isEqualTo("bearer");
         String vecino = token(reclamos, "vecinos.test");
         assertThat(ia.exchange("/resumen-zona?barrio=Palermo", HttpMethod.GET, autorizado(null, vecino),
                 String.class).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -174,8 +183,8 @@ class DespliegueComposeIT {
     @Test
     @Order(4)
     void dockerfilePorDefectoConservaElModoIntegrado() throws Exception {
-        separado.ejecutar("down", "--volumes", "--remove-orphans");
-        Compose integrado = levantar("docker-compose.integrado.yml");
+        separado.close();
+        ComposePruebas integrado = levantar("docker-compose.integrado.yml");
         TestRestTemplate app = integrado.cliente("app", 8080);
         String admin = token(app, "admin.com");
         assertThat(app.getForEntity("/ws/reclamos.wsdl", String.class).getBody()).contains("ReclamosService");
@@ -183,10 +192,10 @@ class DespliegueComposeIT {
         evidencia.put("modo_integrado", Map.of("rest_auth", 200, "soap_wsdl", 200, "resumen_en_mismo_puerto", 200));
     }
 
-    private Compose levantar(String archivo) throws Exception {
-        Compose entorno = new Compose(archivo);
+    private ComposePruebas levantar(String archivo) throws Exception {
+        ComposePruebas entorno = new ComposePruebas(archivo);
         entornos.add(entorno);
-        entorno.ejecutar("up", "--build", "--detach", "--wait", "--wait-timeout", "180");
+        entorno.arrancar();
         return entorno;
     }
 
@@ -245,66 +254,4 @@ class DespliegueComposeIT {
         return new HttpEntity<>(cuerpo, headers);
     }
 
-    private class Compose {
-        private final String archivo;
-        private final String proyecto = "ticketera-it-" + UUID.randomUUID().toString().substring(0, 8);
-        private final Path env;
-        private final Map<String, String> variables;
-
-        Compose(String archivo) throws IOException {
-            this.archivo = archivo;
-            variables = Map.ofEntries(Map.entry("APP_PORT", "0"), Map.entry("IA_PORT", "0"),
-                    Map.entry("POSTGRES_PORT", "0"), Map.entry("RABBITMQ_PORT", "0"),
-                    Map.entry("RABBITMQ_ADMIN_PORT", "0"), Map.entry("REDIS_PORT", "0"),
-                    Map.entry("POSTGRES_DB", "ticketera"), Map.entry("POSTGRES_USER", "ticketera"),
-                    Map.entry("POSTGRES_PASSWORD", "clave-local-compose"), Map.entry("RABBITMQ_USER", "ticketera"),
-                    Map.entry("RABBITMQ_PASSWORD", "clave-local-compose"), Map.entry("IA_GENERADOR", "stub"),
-                    Map.entry("GEO_HABILITADO", "false"), Map.entry("LLM_API_KEY", ""),
-                    Map.entry("DUPLICADOS_HABILITADO", "true"),
-                    Map.entry("JWT_SECRET", "test-compose-separado-0123456789-abcdef"));
-            env = raiz.resolve("target/" + proyecto + ".env");
-            Files.createDirectories(env.getParent());
-            Files.write(env, variables.entrySet().stream().map(v -> v.getKey() + "=" + v.getValue()).toList());
-        }
-
-        String ejecutar(String... argumentos) throws IOException {
-            List<String> comando = new ArrayList<>(List.of(System.getProperty("docker.bin", "docker"), "compose",
-                    "--project-name", proyecto, "--env-file", env.toString(), "--file", archivo));
-            comando.addAll(List.of(argumentos));
-            Path log = raiz.resolve("target/" + proyecto + "-" + UUID.randomUUID() + ".log");
-            ProcessBuilder builder = new ProcessBuilder(comando).directory(raiz.toFile())
-                    .redirectError(log.toFile());
-            builder.environment().putAll(variables);
-            Path docker = Path.of(comando.get(0));
-            if (docker.getParent() != null) {
-                String clavePath = builder.environment().keySet().stream()
-                        .filter(k -> k.equalsIgnoreCase("PATH")).findFirst().orElse("PATH");
-                builder.environment().put(clavePath, docker.toAbsolutePath().getParent() + File.pathSeparator
-                        + builder.environment().getOrDefault(clavePath, ""));
-            }
-            // La salida de un build puede exceder el buffer de un pipe; se lee desde archivo.
-            Path salida = Path.of(log + ".out");
-            Process proceso = builder.redirectOutput(salida.toFile()).start();
-            try {
-                if (!proceso.waitFor(15, TimeUnit.MINUTES)) {
-                    proceso.destroyForcibly();
-                    throw new IOException("Compose excedio el tiempo limite; logs en " + log);
-                }
-            } catch (InterruptedException ex) {
-                proceso.destroyForcibly();
-                Thread.currentThread().interrupt();
-                throw new IOException("Verificacion de Compose interrumpida", ex);
-            }
-            if (proceso.exitValue() != 0) {
-                throw new IOException("Compose " + argumentos[0] + " fallo; logs en " + log + " y " + salida);
-            }
-            return Files.readString(salida);
-        }
-
-        TestRestTemplate cliente(String servicio, int puerto) throws IOException {
-            String direccion = ejecutar("port", servicio, Integer.toString(puerto)).strip();
-            int publicado = Integer.parseInt(direccion.substring(direccion.lastIndexOf(':') + 1));
-            return new TestRestTemplate(new RestTemplateBuilder().rootUri("http://localhost:" + publicado));
-        }
-    }
 }

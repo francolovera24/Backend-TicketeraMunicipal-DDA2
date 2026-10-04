@@ -2,29 +2,23 @@ package com.municipio.ticketera.integracion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.municipio.ticketera.util.ConfiguracionTicketera;
 import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 
 /** Prueba externa explicita: POST sin barrio ni coordenadas -> Nominatim real. */
 @Tag("externa")
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "ticketera.ia.generador=stub",
-        "ticketera.geo.habilitado=true",
-        "ticketera.geo.url=https://nominatim.openstreetmap.org"
-})
-class NominatimRealIT extends IntegracionBase {
+class NominatimRealIT extends ApisExternasComposeBase {
 
-    @Autowired private ConfiguracionTicketera configuracion;
+    @Override
+    protected boolean usaGemini() {
+        return false;
+    }
 
     @Test
     void registrarDireccionCompletaBarrioYCoordenadasReales() throws Exception {
-        assertThat(configuracion.geo().habilitado()).isTrue();
         Map<String, Object> solicitud = Map.of(
                 "ciudadanoId", crearCiudadano(),
                 "tipo", "BACHEO",
@@ -47,6 +41,6 @@ class NominatimRealIT extends IntegracionBase {
         Map<String, Object> persistido = reclamo((String) creado.get("id"));
         assertThat(persistido.get("barrio")).isEqualTo(creado.get("barrio"));
         assertThat(persistido.get("ubicacion")).isEqualTo(ubicacion);
-        EvidenciaExterna.guardar("nominatim", Map.of("solicitud", solicitud, "respuesta", persistido));
+        EvidenciaExterna.guardar("nominatim", Map.of("despliegue", "separado", "solicitud", solicitud, "respuesta", persistido));
     }
 }

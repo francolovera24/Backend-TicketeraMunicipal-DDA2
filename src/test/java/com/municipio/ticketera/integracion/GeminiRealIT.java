@@ -3,35 +3,26 @@ package com.municipio.ticketera.integracion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import com.municipio.ticketera.service.GeneradorDeResumen;
-import com.municipio.ticketera.service.LlmClient;
-import com.municipio.ticketera.util.ConfiguracionTicketera;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 
 /** Prueba externa explicita: REST -> servicios y RabbitMQ -> resumen de Gemini. */
 @Tag("externa")
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "ticketera.ia.generador=llm",
-        "ticketera.ia.llm.url=https://generativelanguage.googleapis.com/v1beta",
-        "ticketera.geo.habilitado=false"
-})
-class GeminiRealIT extends IntegracionBase {
+class GeminiRealIT extends ApisExternasComposeBase {
 
-    @Autowired private GeneradorDeResumen generador;
-    @Autowired private ConfiguracionTicketera configuracion;
+    @Override
+    protected boolean usaGemini() {
+        return true;
+    }
 
     @Test
     void resumenRealConservaLosReclamosYSuPrioridadSinFallback() throws Exception {
-        assertThat(generador).isInstanceOf(LlmClient.class);
         String barrio = "Gemini-" + UUID.randomUUID();
         String ciudadano = crearCiudadano();
         String bache = (String) crearReclamo(ciudadano, "BACHEO", "Pozo profundo en la calzada",
@@ -51,13 +42,12 @@ class GeminiRealIT extends IntegracionBase {
         List<Map<String, Object>> ranking = lista(resumen.get("ranking"));
         assertThat(ranking).extracting(item -> item.get("reclamoId")).containsExactly(cable, bache);
         assertThat(ranking).extracting(item -> item.get("tipo")).containsExactly("CABLEADO", "BACHEO");
-        EvidenciaExterna.guardar("gemini", Map.of("modelo", configuracion.ia().llm().modelo(),
+        EvidenciaExterna.guardar("gemini", Map.of("despliegue", "separado", "modelo", modelo(),
                 "reclamos", List.of(cable, bache), "respuesta", resumen));
     }
 
     @Test
     void dosReportesDelMismoCableSeVinculanComoDuplicados() throws Exception {
-        assertThat(generador).isInstanceOf(LlmClient.class);
         String barrio = "Duplicados-Gemini-" + UUID.randomUUID();
         String ciudadano = crearCiudadano();
         String original = (String) crearReclamo(ciudadano, "CABLEADO",
@@ -78,7 +68,7 @@ class GeminiRealIT extends IntegracionBase {
         assertThat(duplicado.get("reclamoOriginalId")).isEqualTo(original);
         assertThat(duplicado.get("cuadrillaId")).isNull();
         EvidenciaExterna.guardar("gemini-duplicados", Map.of(
-                "modelo", configuracion.ia().llm().modelo(),
+                "despliegue", "separado", "modelo", modelo(),
                 "original", reclamo(original), "duplicado", duplicado));
     }
 }

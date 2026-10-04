@@ -6,13 +6,18 @@ skinparam componentStyle rectangle
 skinparam defaultFontSize 11
 skinparam nodesep 25
 skinparam ranksep 40
+title Ticketera Municipal - eventos entre aplicaciones
 
-package "Aplicacion (monolito modular)" {
+node "Reclamos" {
     [SvcReclamos\n<<Facade>>] as SvcReclamos
-    [SvcIA\n<<Observador>>] as SvcIA
     [SvcCuadrillas\n<<Observador>>] as SvcCuadrillas
-    [Broker\n<<Sujeto>>] as Broker
+    [Broker\n<<Sujeto>>] as BrokerReclamos
     [ConsumidorCuadrillas\nlistener "consumidor-cuadrillas"] as LCuadrillas
+}
+
+node "Zonas/Resumenes e IA" {
+    [SvcIA\n<<Observador>>] as SvcIA
+    [Broker\n<<Sujeto>>] as BrokerIA
     [ConsumidorIA\nlistener "consumidor-ia"] as LIa
 }
 
@@ -27,10 +32,11 @@ node "RabbitMQ" {
 database "PostgreSQL\ntabla evento_procesado\nPK (event_id, consumidor)" as EP
 
 ' ---------- publicacion ----------
-SvcReclamos --> Broker : reclamo.creado (POST /reclamos)\nreclamo.resuelto (PUT estado=RESUELTO)\nreclamo.estado_cambiado (otros cambios validos)
-SvcIA --> Broker : reclamo.validado (no es duplicado)\nzona.resumen (resumen regenerado)
-SvcCuadrillas --> Broker : reclamo.asignado (asignacion de cuadrilla)
-Broker --> EX : publica despues del commit,\nmensaje persistente,\npublisher confirms
+SvcReclamos --> BrokerReclamos : reclamo.creado (POST /reclamos)\nreclamo.resuelto (PUT estado=RESUELTO)\nreclamo.estado_cambiado (otros cambios validos)
+SvcIA --> BrokerIA : reclamo.validado (no es duplicado)\nzona.resumen (resumen regenerado)
+SvcCuadrillas --> BrokerReclamos : reclamo.asignado (asignacion de cuadrilla)
+BrokerReclamos --> EX : despues del commit, persistente,\npublisher confirms
+BrokerIA --> EX : despues del commit, persistente,\npublisher confirms
 
 ' ---------- bindings ----------
 EX --> QC : reclamo.validado

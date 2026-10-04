@@ -20,6 +20,10 @@ aplicaciones; `docker-compose.integrado.yml` conserva el despliegue integrado.
 Ver [composicion, avances y ejecucion](docs/separacion-servicios.md),
 `CLAUDE.md` y el diagrama `docs/09_diagrama_aplicaciones.puml`.
 
+Los diagramas de clases describen el codigo compartido; 04 y 05a conservan
+las vistas del modo integrado. 05 muestra los contenedores separados, 06 el
+intercambio de eventos entre aplicaciones y 09 sus responsabilidades.
+
 Diagramas en `docs/` (PlantUML). Para verlos como imagen, desde esta carpeta:
 ```bash
 docker run --rm -e PLANTUML_LIMIT_SIZE=16384 -v "${PWD}/docs:/docs" plantuml/plantuml -tsvg -o /docs/_png /docs/*.puml
@@ -348,7 +352,8 @@ Esta prueba necesita Docker Compose en PATH (o `-Ddocker.bin=/ruta/a/docker`).
 Construye las imagenes, usa proyectos y puertos aleatorios, y elimina solo sus
 contenedores y volumenes al terminar. No carga `.env` ni usa APIs externas.
 Comprueba ambos despliegues, contratos, JWT, duplicados, cuadrillas, SOAP,
-cache y recuperacion de eventos tras detener y arrancar IA. La evidencia sin
+cache y recuperacion de eventos tras detener y arrancar IA. Tambien verifica
+los contratos OpenAPI exclusivos y el rechazo de un JWT invalido. La evidencia sin
 tokens ni claves se guarda en `target/evidencias/compose.json`; los logs quedan
 en `target/`. No forma parte de la suite habitual por terminar en `IT`.
 
@@ -366,8 +371,11 @@ en `target/`. No forma parte de la suite habitual por terminar en `IT`.
 
 ### Pruebas con APIs externas reales
 
-`NominatimRealIT` y `GeminiRealIT` arrancan la aplicacion con PostgreSQL y
-RabbitMQ de Testcontainers y llaman a las APIs oficiales. No se ejecutan con
+`NominatimRealIT` y `GeminiRealIT` construyen y arrancan el Compose separado
+con datos nuevos y llaman a las APIs oficiales desde los contenedores.
+Requieren Docker Compose; usan proyectos y puertos aleatorios, comparten la
+preparacion con la prueba de despliegue y eliminan sus propios recursos al
+terminar. No se ejecutan con
 `mvn test`: el sufijo `IT` permite seleccionarlas explicitamente.
 
 Nominatim: registrar una direccion publica de CABA sin barrio ni coordenadas,
@@ -381,7 +389,8 @@ Gemini: definir `LLM_API_KEY` en el entorno del proceso; `LLM_MODEL` es opcional
 y conserva el valor de `application.yml` si no se informa. La prueba activa
 `llm`, crea dos reclamos de distinto tipo, espera su validacion y consulta el
 resumen. Exige el cliente real, texto no vacio, ausencia de fallback y el
-ranking esperado. Tambien comprueba que dos reportes del mismo problema se
+ranking esperado desde el puerto de IA, con el JWT emitido por Reclamos.
+Tambien comprueba que dos reportes del mismo problema se
 vinculan como duplicados:
 
 ```bash
@@ -390,7 +399,16 @@ mvn test -Dtest=GeminiRealIT
 
 Maven no carga `.env` automaticamente; para estas pruebas la clave debe estar
 exportada como variable de entorno. Docker Compose si carga `.env`.
+Las pruebas no leen `.env`: exportar `LLM_API_KEY` antes de ejecutar Maven.
+Solo se transmite al proceso de Compose por entorno y al contenedor de IA;
+no se copia al `.env` temporal de las pruebas, a sus evidencias ni a Git.
 Las credenciales nunca se incluyen en los comandos documentados ni en Git.
+
+Para repetir las siete comprobaciones del sistema separado:
+
+```bash
+mvn test -Dtest=DespliegueComposeIT,NominatimRealIT,GeminiRealIT
+```
 
 Cada prueba exitosa guarda la solicitud o los datos de entrada y la respuesta
 en `target/evidencias/nominatim.json`, `target/evidencias/gemini.json` o
@@ -400,7 +418,25 @@ su prioridad: la prueba automatica no evalua toda su exactitud semantica.
 Los archivos de evidencia son locales y `target/` esta ignorado por Git.
 Estas pruebas requieren Internet y disponibilidad o cuota del proveedor;
 Gemini puede consumir cuota facturable segun la configuracion del proyecto.
-Ver la [evidencia de ejecucion](docs/evidencias/apis-reales.md).
+Ver la [evidencia de ejecucion](docs/evidencias/apis-reales.md) y los
+[resultados de la separacion](docs/separacion-servicios.md#verificacion).
+
+### Recorrido de demostracion
+
+1. Configurar `.env`, ejecutar `docker compose up --build --wait` y comprobar
+   `docker compose ps`. Los puertos predeterminados son Reclamos 8080 e IA 8081.
+2. Abrir Swagger/OpenAPI en ambos puertos y el WSDL de Reclamos. Registrar y
+   loguear un ADMIN en 8080; usar su JWT tambien al consultar el resumen en 8081.
+3. Con GEO_HABILITADO=true, registrar Avenida Cabildo 2040 sin barrio ni
+   coordenadas. El alta completa esos datos; consultar el reclamo por su ID
+   para comprobar su persistencia y esperar su asignacion asincronica.
+4. Con IA_GENERADOR=llm y una clave valida, consultar el resumen de Belgrano
+   en 8081. Comprobar texto, ranking y generadoPorIa=true; repetir la consulta
+   para observar el mismo timestamp de cache. Cambiar el estado de un reclamo
+   asignado a EN_PROCESO en 8080 y volver a consultar cuando IA procese el evento.
+5. Revisar las colas y consumidores en RabbitMQ Management. La prueba de
+   despliegue automatiza tambien duplicados, resolucion/reasignacion y reinicio
+   de IA, sin usar los datos de esta demostracion.
 
 ## Errores
 Formato RFC 7807 (`application/problem+json`): 400 datos invalidos, 401 sin
