@@ -117,13 +117,10 @@ public class SvcReclamos {
         log.info("reclamo.estado_cambiado", "reclamoId", id, "desde", anterior, "hacia", nuevoEstado);
 
         TipoEvento tipoEvento = switch (nuevoEstado) {
-            case ASIGNADO -> TipoEvento.RECLAMO_ASIGNADO;
             case RESUELTO -> TipoEvento.RECLAMO_RESUELTO;
-            default -> null;
+            default -> TipoEvento.RECLAMO_ESTADO_CAMBIADO;
         };
-        if (tipoEvento != null) {
-            broker.publicar(Evento.de(tipoEvento, reclamo.getId(), reclamo.getBarrio().getNombre()));
-        }
+        broker.publicar(Evento.de(tipoEvento, reclamo.getId(), reclamo.getBarrio().getNombre()));
         return reclamo;
     }
 

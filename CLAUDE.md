@@ -135,6 +135,10 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
   Metodos: cambiarEstado, marcarUrgente, calcularAntiguedad (horas).
 - Estado: NUEVO, EN_ANALISIS, ASIGNADO, EN_PROCESO, RESUELTO, RECHAZADO, DUPLICADO.
   Reclamo tiene `reclamoOriginal` (si es DUPLICADO) y `marcarDuplicadoDe`.
+- `Reclamo.cambiarEstado` rechaza ASIGNADO y DUPLICADO. Esos estados requieren
+  `asignarCuadrilla` (cuadrilla no nula) o `marcarDuplicadoDe` respectivamente.
+  PUT /reclamos/{id}/estado con ASIGNADO devuelve 409; se debe usar
+  PUT /reclamos/{id}/asignar-cuadrilla. SvcCuadrillas publica reclamo.asignado.
 - TipoDeReclamo (enum con pesoRiesgo): CABLEADO 10, BACHEO 5, ALUMBRADO 6,
   ARBOLADO 2, RUIDOS_MOLESTOS 3. Sin metodos de negocio.
 - Ciudadano (historialReclamos, agregarReclamoAlHistorial), Barrio (catalogo,
@@ -168,7 +172,10 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
 - Exchange topic `ticketera.eventos`. Colas durables, mensajes persistentes.
 - `Evento`: eventId (UUID), tipo, timestamp, version, correlationId, reclamoId, barrio.
 - Routing keys: reclamo.creado, reclamo.validado, reclamo.asignado, reclamo.resuelto,
-  zona.resumen.
+  reclamo.estado_cambiado, zona.resumen.
+- Todo cambio de estado valido publica un evento. EN_ANALISIS, EN_PROCESO y
+  RECHAZADO usan reclamo.estado_cambiado; SvcIA invalida las variantes del barrio
+  al consumirlo. La actualizacion del resumen es asincronica.
 - `Broker.publicar` completa eventId/timestamp/correlationId y publica SOLO a
   RabbitMQ. NO debe llamar a los observadores en memoria (un esqueleto previo lo
   hacia y dejaba las colas sin consumidores: es un error conocido).

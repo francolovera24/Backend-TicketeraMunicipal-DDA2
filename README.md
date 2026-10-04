@@ -131,10 +131,12 @@ curl -X PUT http://localhost:8080/reclamos/<id-del-reclamo>/estado \
   -H "Content-Type: application/json" \
   -d '{"estado":"EN_PROCESO"}'
 ```
-Transiciones permitidas: `NUEVO -> EN_ANALISIS | ASIGNADO | RECHAZADO`,
-`EN_ANALISIS -> ASIGNADO | RECHAZADO`, `ASIGNADO -> EN_PROCESO | RESUELTO`,
-`EN_PROCESO -> RESUELTO`. Otra transicion devuelve 409. `DUPLICADO` solo lo
-asigna el sistema y es final.
+En este endpoint: `NUEVO -> EN_ANALISIS | RECHAZADO`,
+`EN_ANALISIS -> RECHAZADO`, `ASIGNADO -> EN_PROCESO | RESUELTO`,
+`EN_PROCESO -> RESUELTO`. Otra transicion devuelve 409. Para pasar de NUEVO
+o EN_ANALISIS a ASIGNADO se usa `asignar-cuadrilla`, que vincula y ocupa la
+cuadrilla; pedir ASIGNADO por `/estado` devuelve 409.
+`DUPLICADO` solo lo asigna el sistema y es final.
 
 Asignar una cuadrilla a mano (Panel Municipal, ADMIN). Primero se buscan las libres
 de la especialidad del reclamo:
@@ -208,6 +210,11 @@ Flujo de alta: `reclamo.creado` -> `SvcIA` valida el reclamo (duplicados) ->
 - `SvcIA`: invalida la cache del resumen del barrio. Ante `reclamo.creado`
   busca si es duplicado; si no lo es, calcula su score inicial y publica
   `reclamo.validado`.
+- Cada cambio de estado valido publica un evento: `reclamo.asignado`,
+  `reclamo.resuelto` o `reclamo.estado_cambiado` (EN_ANALISIS, EN_PROCESO y
+  RECHAZADO). Al consumirlo, SvcIA invalida todas las variantes del resumen del
+  barrio; la siguiente consulta lo recalcula. La actualizacion es asincronica.
+  El evento general no llega a la cola de cuadrillas.
 - `SvcCuadrillas`: con `reclamo.validado` asigna una cuadrilla libre de la
   especialidad (si no hay, queda pendiente); al resolverse, libera la cuadrilla
   y le asigna el reclamo pendiente mas antiguo de ese tipo.

@@ -3,12 +3,23 @@ package com.municipio.ticketera.integracion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import com.municipio.ticketera.domain.Ciudadano;
+import com.municipio.ticketera.domain.Cuadrilla;
+import com.municipio.ticketera.domain.TipoDeReclamo;
+import com.municipio.ticketera.domain.Ubicacion;
+import com.municipio.ticketera.patterns.factory.ArboladoReclamoFactory;
+import com.municipio.ticketera.repository.CiudadanoRepository;
+import com.municipio.ticketera.repository.CuadrillaRepository;
+import com.municipio.ticketera.repository.ReclamoRepository;
+import com.municipio.ticketera.service.SvcBarrios;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +29,11 @@ import org.springframework.http.ResponseEntity;
  */
 @ExtendWith(OutputCaptureExtension.class)
 class FlujoReclamoIntegracionTest extends IntegracionBase {
+
+    @Autowired private ReclamoRepository repoReclamos;
+    @Autowired private CiudadanoRepository repoCiudadanos;
+    @Autowired private CuadrillaRepository repoCuadrillas;
+    @Autowired private SvcBarrios svcBarrios;
 
     @Test
     void altaDeReclamoSeValidaYSeAsignaCuadrilla() {
@@ -84,16 +100,22 @@ class FlujoReclamoIntegracionTest extends IntegracionBase {
 
     @Test
     void reclamoAsignadoYReclamoResueltoLleganASusConsumidores(CapturedOutput salida) {
-        // ARBOLADO tiene una sola cuadrilla y otro test puede tenerla ocupada: si no se asigno sola, a mano.
-        Map<String, Object> reclamo = crearReclamo(crearCiudadano(), "ARBOLADO",
-                "Ramas tapando el semaforo", "Chacarita", null, null);
-        String id = (String) reclamo.get("id");
-        esperarReclamo(id, validado());
-        if ("NUEVO".equals(reclamo(id).get("estado"))) {
-            assertThat(cambiarEstado(id, "ASIGNADO").getStatusCode()).isEqualTo(HttpStatus.OK);
-        }
+        // Fixture sin alta asincronica: evita competir por la cuadrilla con la asignacion automatica.
+        Ciudadano ciudadano = repoCiudadanos.save(
+                new Ciudadano("Vecino mensajes", UUID.randomUUID() + "@test.com"));
+        var barrio = svcBarrios.resolverBarrio("Mensajes-" + UUID.randomUUID());
+        var pendiente = repoReclamos.saveAndFlush(new ArboladoReclamoFactory().crear(
+                "Ramas tapando el semaforo", new Ubicacion("Calle 123", null, null), barrio, ciudadano));
+        Cuadrilla cuadrilla = repoCuadrillas.saveAndFlush(
+                new Cuadrilla("Arbolado mensajes " + UUID.randomUUID(), TipoDeReclamo.ARBOLADO));
+        String id = pendiente.getId().toString();
 
-        // ReclamoAsignado: publicado por SvcCuadrillas o SvcReclamos, lo consume SvcIA (ia.eventos).
+        ResponseEntity<Map<String, Object>> asignado = enviar(HttpMethod.PUT,
+                "/reclamos/" + id + "/asignar-cuadrilla", Map.of("cuadrillaId", cuadrilla.getId().toString()));
+        assertThat(asignado.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(asignado.getBody().get("cuadrillaId")).isEqualTo(cuadrilla.getId().toString());
+
+        // ReclamoAsignado: publicado por la asignacion real de SvcCuadrillas, lo consume SvcIA.
         esperarLog(salida, "evento.procesando cola=ia.eventos tipo=RECLAMO_ASIGNADO eventId=\\S+ reclamoId=" + id);
 
         assertThat(cambiarEstado(id, "RESUELTO").getStatusCode()).isEqualTo(HttpStatus.OK);

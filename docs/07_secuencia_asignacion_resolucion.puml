@@ -35,6 +35,11 @@ end
 
 == Asignacion manual (alternativa, desde el Panel) ==
 
+note over Panel, REST
+  ASIGNADO requiere una cuadrilla: PUT /reclamos/{id}/estado (ASIGNADO)
+  devuelve 409. La asignacion manual usa el endpoint siguiente.
+end note
+
 Operador -> Panel : asignarCuadrilla(idReclamo, idCuadrilla)
 Panel -> REST : GET /cuadrillas?especialidad=X&disponible=true
 REST --> Panel : cuadrillas libres
@@ -79,11 +84,21 @@ else transicion no permitida (ej. desde NUEVO o DUPLICADO)
 else transicion valida
     Repo --> Svc : reclamo
     Svc -> Svc : reclamo.cambiarEstado(EN_PROCESO)
+    Svc -> Broker : publicar(ReclamoEstadoCambiado)\n(se envia despues del commit)
+    Broker -> ConsIA : ReclamoEstadoCambiado
+    ConsIA -> IA : actualizar(ReclamoEstadoCambiado)
+    note right of IA : invalida las variantes\ndel resumen del barrio
     Svc --> REST : reclamo
     REST --> Panel : 200 OK
 end
 
 == Resolucion ==
+
+note over Svc, IA
+  EN_ANALISIS y RECHAZADO tambien publican ReclamoEstadoCambiado.
+  Al consumir el evento, la proxima consulta recalcula el resumen.
+  Un reclamo RECHAZADO deja de contar como activo.
+end note
 
 Operador -> Panel : marcar resuelto
 Panel -> REST : PUT /reclamos/{id}/estado (RESUELTO)
