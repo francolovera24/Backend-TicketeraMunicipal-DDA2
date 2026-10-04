@@ -1,6 +1,6 @@
 @startuml FlujoMensajes
 ' Flujo de mensajes RabbitMQ tal como lo implementan RabbitMQConfig,
-' ConsumidorEventos, Broker y application.yml (spring.rabbitmq.listener).
+' ConsumidorIA, ConsumidorCuadrillas, Broker y application.yml (spring.rabbitmq.listener).
 left to right direction
 skinparam componentStyle rectangle
 skinparam defaultFontSize 11
@@ -12,8 +12,8 @@ package "Aplicacion (monolito modular)" {
     [SvcIA\n<<Observador>>] as SvcIA
     [SvcCuadrillas\n<<Observador>>] as SvcCuadrillas
     [Broker\n<<Sujeto>>] as Broker
-    [ConsumidorEventos\nlistener "consumidor-cuadrillas"] as LCuadrillas
-    [ConsumidorEventos\nlistener "consumidor-ia"] as LIa
+    [ConsumidorCuadrillas\nlistener "consumidor-cuadrillas"] as LCuadrillas
+    [ConsumidorIA\nlistener "consumidor-ia"] as LIa
 }
 
 node "RabbitMQ" {

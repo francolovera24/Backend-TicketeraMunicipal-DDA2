@@ -21,8 +21,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /**
  * Sujeto del Observer sobre RabbitMQ. {@link #publicar} solo envia al exchange:
- * nunca llama a los observadores en memoria. La entrega la hace
- * ConsumidorEventos desde cada cola.
+ * nunca llama a los observadores en memoria. Los consumidores entregan
+ * los eventos desde cada cola.
  */
 @Component
 public class Broker implements Sujeto {
@@ -33,15 +33,15 @@ public class Broker implements Sujeto {
 
     private final RabbitTemplate rabbitTemplate;
     private final RabbitListenerEndpointRegistry listeners;
-    // Diferido: ConsumidorEventos depende de los observadores, que dependen del Broker.
-    private final ObjectProvider<ConsumidorEventos> consumidor;
+    // Diferido: cada consumidor depende de su observador, que depende del Broker.
+    private final ObjectProvider<ConsumidorEventos> consumidores;
 
     public Broker(RabbitTemplate rabbitTemplate,
                   RabbitListenerEndpointRegistry listeners,
-                  ObjectProvider<ConsumidorEventos> consumidor) {
+                  ObjectProvider<ConsumidorEventos> consumidores) {
         this.rabbitTemplate = rabbitTemplate;
         this.listeners = listeners;
-        this.consumidor = consumidor;
+        this.consumidores = consumidores;
     }
 
     /**
@@ -90,7 +90,10 @@ public class Broker implements Sujeto {
     }
 
     private MessageListenerContainer contenedorDe(Observador observador) {
-        String id = consumidor.getObject().listenerDe(observador);
+        String id = consumidores.stream()
+                .map(consumidor -> consumidor.listenerDe(observador))
+                .filter(listenerId -> listenerId != null)
+                .findFirst().orElse(null);
         MessageListenerContainer contenedor = id != null ? listeners.getListenerContainer(id) : null;
         if (contenedor == null) {
             throw new IllegalArgumentException("No hay una cola configurada para " + nombre(observador));

@@ -1,14 +1,19 @@
 package com.municipio.ticketera.integracion;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import com.municipio.ticketera.config.RabbitMQConfig;
+import com.municipio.ticketera.messaging.ConsumidorEventos;
 import com.municipio.ticketera.patterns.observer.Evento;
 import com.municipio.ticketera.patterns.observer.TipoEvento;
+import com.municipio.ticketera.patterns.observer.Observador;
+import com.municipio.ticketera.repository.EventoProcesadoRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.amqp.core.AmqpAdmin;
@@ -20,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Confiabilidad de la mensajeria: idempotencia y dead letter queue.
@@ -35,6 +41,12 @@ class MensajeriaIntegracionTest extends IntegracionBase {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private EventoProcesadoRepository procesados;
+
+    @Autowired
+    private TransactionTemplate tx;
 
     @Test
     void unEventoRepetidoSeProcesaUnaSolaVezPorCola(CapturedOutput salida) {
@@ -71,6 +83,35 @@ class MensajeriaIntegracionTest extends IntegracionBase {
 
         // Lo reciben cuadrillas.eventos e ia.eventos: ambos lo derivan a la DLQ.
         await().atMost(ESPERA).until(() -> mensajesEnDlq() == antes + 2);
+    }
+
+    @Test
+    void falloDelObservadorRevierteElRegistroYPermiteReintentarElEvento() {
+        UUID eventId = UUID.randomUUID();
+        Evento evento = new Evento(eventId, TipoEvento.RECLAMO_RESUELTO, Instant.now(), Evento.VERSION_ACTUAL,
+                "test-reintento", UUID.randomUUID(), "Palermo");
+        AtomicInteger intentos = new AtomicInteger();
+        Observador observador = recibido -> {
+            if (intentos.incrementAndGet() == 1) {
+                throw new IllegalStateException("Fallo transitorio del observador");
+            }
+        };
+        var consumidor = new ConsumidorEventos(observador, "test-reintento", RabbitMQConfig.COLA_IA, procesados, tx) {
+            public void recibir(Evento recibido) {
+                procesar(recibido);
+            }
+        };
+
+        assertThatThrownBy(() -> consumidor.recibir(evento)).isInstanceOf(IllegalStateException.class);
+        assertThat(jdbc.queryForObject("select count(*) from evento_procesado where event_id = ?",
+                Integer.class, eventId)).isZero();
+
+        consumidor.recibir(evento);
+        consumidor.recibir(evento);
+
+        assertThat(intentos.get()).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from evento_procesado where event_id = ?",
+                Integer.class, eventId)).isEqualTo(1);
     }
 
     private int mensajesEnDlq() {

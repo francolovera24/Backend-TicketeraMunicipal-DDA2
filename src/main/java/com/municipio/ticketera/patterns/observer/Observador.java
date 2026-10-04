@@ -1,7 +1,7 @@
 package com.municipio.ticketera.patterns.observer;
 
 /**
- * Observer: recibe los eventos que le entrega ConsumidorEventos desde su cola.
+ * Observer: recibe los eventos que le entrega el consumidor de su cola.
  */
 public interface Observador {
 

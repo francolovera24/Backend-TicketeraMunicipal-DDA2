@@ -43,12 +43,14 @@ package "Capa Servicios (monolito modular: modulos de un unico despliegue)" {
         interface "ICuadrillasREST" as ICuadrillas
         [REST_Cuadrillas]
         [Svc_Cuadrillas <<Observer>>]
+        [ConsumidorCuadrillas]
     }
 
     component "Servicio de IA" as CompIA {
         interface "IResumenZonaREST" as IResumen
         [REST_ResumenZona]
         [Svc_IA <<Strategy, Observer>>]
+        [ConsumidorIA]
         [DetectorDeDuplicados]
         [Cache_Resumenes (memoria)]
     }
@@ -58,7 +60,7 @@ package "Capa Mensajeria" {
     component "Broker de Eventos" as CompBroker {
         interface "IMensajeria" as IMsg
         [Broker <<Sujeto>>]
-        [ConsumidorEventos]
+        [ConsumidorEventos (base comun)]
     }
     queue "RabbitMQ" as MQ
 }
@@ -91,6 +93,8 @@ CompReclamos --> IMsg : publica eventos
 CompCuadrillas --> IMsg : publica y consume
 CompIA --> IMsg : publica y consume
 CompBroker --> MQ
+[ConsumidorCuadrillas] ..> [ConsumidorEventos (base comun)] : reutiliza procesamiento
+[ConsumidorIA] ..> [ConsumidorEventos (base comun)] : reutiliza procesamiento
 CompReclamos ..> CompCuadrillas : asignacion manual
 
 ' ---- Datos ----

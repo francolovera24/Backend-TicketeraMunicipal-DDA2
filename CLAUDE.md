@@ -121,7 +121,7 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
 | Svc_Reclamos (Facade) | SvcReclamos |
 | Svc_Barrios / Svc_Cuadrillas / Svc_IA / Svc_Ciudadanos | SvcBarrios / SvcCuadrillas / SvcIA / SvcCiudadanos |
 | Repo_Reclamo / Repo_Barrio / Repo_Cuadrilla / Repo_Ciudadano | ReclamoRepository / BarrioRepository / CuadrillaRepository / CiudadanoRepository |
-| Broker, Consumidor_Eventos, Evento | Broker, ConsumidorEventos, Evento |
+| Broker, Consumidores de eventos, Evento | Broker, ConsumidorEventos (base), ConsumidorIA, ConsumidorCuadrillas, Evento |
 | Cache_Resumenes | CacheResumenes |
 | API_Geo / API_LLM | GeoClient / LlmClient (implementa GeneradorDeResumen) |
 | REST_Auth / Svc_Auth / Repo_Usuario | AuthController / SvcAuth / UsuarioRepository |
@@ -179,14 +179,15 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
 - `Broker.publicar` completa eventId/timestamp/correlationId y publica SOLO a
   RabbitMQ. NO debe llamar a los observadores en memoria (un esqueleto previo lo
   hacia y dejaba las colas sin consumidores: es un error conocido).
-- `ConsumidorEventos` con @RabbitListener por cola, entrega al Observador:
-  - cuadrillas.eventos: bindings reclamo.validado y reclamo.resuelto -> SvcCuadrillas
-  - ia.eventos: binding reclamo.# -> SvcIA (invalida la cache de esa zona y, ante
+- `ConsumidorEventos` es la base comun del procesamiento transaccional. Cada
+  consumidor tiene su propio @RabbitListener y depende solo de su Observador:
+  - `ConsumidorCuadrillas`: cuadrillas.eventos, bindings reclamo.validado y reclamo.resuelto -> SvcCuadrillas
+  - `ConsumidorIA`: ia.eventos, binding reclamo.# -> SvcIA (invalida la cache de esa zona y, ante
     reclamo.creado, valida el reclamo: deteccion de duplicados)
   - `zona.resumen` NO se bindea a ia.eventos (evita un ciclo de invalidacion).
 - Confiabilidad: ACK tras procesar, reintentos limitados (3, con backoff), luego
   Dead Letter Exchange -> cola `ticketera.eventos.dlq`.
-- Idempotencia: tabla `evento_procesado` con eventId unico en Postgres; el
+- Idempotencia: tabla `evento_procesado` con (eventId, consumidor) unico en Postgres; el
   consumidor descarta duplicados. No usar un Set en memoria.
 - "suscribir" = registrar el observador y su binding/listener; "notificar" =
   publicar al exchange.
