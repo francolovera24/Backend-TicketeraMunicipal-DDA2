@@ -19,7 +19,7 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?definir RABBITMQ_PASSWORD en .env}
       IA_GENERADOR: ${IA_GENERADOR:-stub}
       LLM_URL: ${LLM_URL:-https://generativelanguage.googleapis.com/v1beta}
-      LLM_MODEL: ${LLM_MODEL:-gemini-2.5-flash}
+      LLM_MODEL: ${LLM_MODEL:-gemini-3.8-flash}
       LLM_API_KEY: ${LLM_API_KEY:-}
       GEO_HABILITADO: ${GEO_HABILITADO:-true}
       GEO_CONTACTO: ${GEO_CONTACTO:-}

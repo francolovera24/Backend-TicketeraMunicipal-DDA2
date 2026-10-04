@@ -240,7 +240,7 @@ Para usar Gemini, en `.env` (nunca en el repo):
 ```
 IA_GENERADOR=llm
 LLM_API_KEY=<tu key>
-LLM_MODEL=gemini-2.5-flash
+LLM_MODEL=gemini-3.8-flash
 ```
 - Al modelo solo se envian barrio, tipo y descripcion, hasta 20 reclamos. Antes
   se anonimiza la descripcion (`util.Anonimizador`): se borran el nombre y el
@@ -292,6 +292,44 @@ El build de Docker (`docker compose up --build`) no corre los tests.
   y login, y autorizacion por rol (401 sin token, 403 con VECINO). Actuan como
   ADMIN: `IntegracionBase` registra un usuario `@admin.com` y agrega su token. Usan el
   stub de IA y Nominatim apagado, asi no dependen de servicios externos.
+
+### Pruebas con APIs externas reales
+
+`NominatimRealIT` y `GeminiRealIT` arrancan la aplicacion con PostgreSQL y
+RabbitMQ de Testcontainers y llaman a las APIs oficiales. No se ejecutan con
+`mvn test`: el sufijo `IT` permite seleccionarlas explicitamente.
+
+Nominatim: registrar una direccion publica de CABA sin barrio ni coordenadas,
+comprobar que ambos se completan y verificar que quedan persistidos:
+
+```bash
+mvn test -Dtest=NominatimRealIT
+```
+
+Gemini: definir `LLM_API_KEY` en el entorno del proceso; `LLM_MODEL` es opcional
+y conserva el valor de `application.yml` si no se informa. La prueba activa
+`llm`, crea dos reclamos de distinto tipo, espera su validacion y consulta el
+resumen. Exige el cliente real, texto no vacio, ausencia de fallback y el
+ranking esperado. Tambien comprueba que dos reportes del mismo problema se
+vinculan como duplicados:
+
+```bash
+mvn test -Dtest=GeminiRealIT
+```
+
+Maven no carga `.env` automaticamente; para estas pruebas la clave debe estar
+exportada como variable de entorno. Docker Compose si carga `.env`.
+Las credenciales nunca se incluyen en los comandos documentados ni en Git.
+
+Cada prueba exitosa guarda la solicitud o los datos de entrada y la respuesta
+en `target/evidencias/nominatim.json`, `target/evidencias/gemini.json` o
+`target/evidencias/gemini-duplicados.json`.
+Revisar el texto generado para comprobar que describe los problemas y respeta
+su prioridad: la prueba automatica no evalua toda su exactitud semantica.
+Los archivos de evidencia son locales y `target/` esta ignorado por Git.
+Estas pruebas requieren Internet y disponibilidad o cuota del proveedor;
+Gemini puede consumir cuota facturable segun la configuracion del proyecto.
+Ver la [evidencia de ejecucion](docs/evidencias/apis-reales.md).
 
 ## Errores
 Formato RFC 7807 (`application/problem+json`): 400 datos invalidos, 401 sin
