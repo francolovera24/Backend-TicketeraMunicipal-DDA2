@@ -72,7 +72,10 @@ JWT, SOAP, eventos, cache y reinicio de IA. `NominatimRealIT` y `GeminiRealIT`
 usan el Compose separado y las APIs oficiales; se seleccionan explicitamente
 con `-Dtest`, requieren Docker Compose y Gemini toma LLM_API_KEY del entorno.
 ComposePruebas comparte la preparacion y no escribe esa clave en sus archivos
-temporales. Las evidencias y logs quedan en target/, fuera de Git.
+temporales. Las ejecuciones generan evidencias y logs en target/, fuera de Git.
+La guia docs/segunda-parte.md documenta los contratos y enlaza las capturas
+revisadas de la entrega en docs/evidencias/segunda-parte/. Esas copias se
+conservan en Git y no se actualizan automaticamente al repetir las pruebas.
 
 ## Paquetes (base: com.municipio.ticketera)
 controller, service, repository, domain, patterns/{factory,strategy,observer},

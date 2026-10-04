@@ -64,7 +64,9 @@ La suite habitual no consulta estas APIs. Las pruebas externas se seleccionan
 explicitamente y requieren Internet, Docker y `LLM_API_KEY` en el entorno.
 Los detalles de configuracion estan en el README. Cada prueba exitosa guarda
 los datos de entrada y la respuesta en `target/evidencias/`, sin headers ni
-claves. Los JSON son locales y no se incluyen en Git.
+claves. Los JSON generados son locales. La copia revisada de la ejecucion del
+despliegue separado se conserva en [segunda-parte/](segunda-parte/), junto con
+el resumen de pruebas; las ejecuciones posteriores no actualizan esa copia.
 
 La comprobacion inicial completo 200 pruebas habituales y tres externas
 sin fallos, errores ni omisiones. La disponibilidad

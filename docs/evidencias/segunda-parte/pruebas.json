@@ -1,0 +1,403 @@
+{
+  "fecha_ejecucion": "2026-10-04",
+  "version_referencia": "976c46b8e3b836d11bac77d383ab772e152f3063",
+  "alcance": "Resultados existentes de la verificacion de las aplicaciones separadas; no es una nueva ejecucion.",
+  "entorno": {
+    "java": "17",
+    "postgresql": "16",
+    "rabbitmq": "3",
+    "habitual": "Testcontainers; IA stub y geolocalizacion deshabilitada",
+    "explicita": "Docker Compose real; proyectos y puertos aislados; Nominatim y Gemini oficiales en sus clases"
+  },
+  "ejecuciones": [
+    {
+      "comando_equivalente": "mvn test",
+      "resultado": "BUILD SUCCESS",
+      "totales": {
+        "tests": 206,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "origen": {
+        "reportes": "target/surefire-reports/TEST-*.xml",
+        "sha256_log": "167aef1c3eec866a1c9e1cb8af99477bac5988374dd8f1d81466ea078ea920ce"
+      },
+      "clases": [
+        {
+          "clase": "com.municipio.ticketera.config.JwtAuthenticationFilterTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.config.ProveedorJwtTest",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.domain.ReclamoTest",
+          "tests": 29,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.domain.UbicacionTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.ActualizacionResumenIntegracionTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "cambioDeEstadoInvalidaResumenGeneralYFiltrado(Estado, Estado)[1]",
+            "cambioDeEstadoInvalidaResumenGeneralYFiltrado(Estado, Estado)[2]",
+            "cambioDeEstadoInvalidaResumenGeneralYFiltrado(Estado, Estado)[3]"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.ApiErroresIntegracionTest",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "sinBarrioYSinGeolocalizacionDevuelve400",
+            "propagaElCorrelationId",
+            "tipoOEstadoInexistenteDevuelve400",
+            "recursosInexistentesDevuelven404YIdMalFormado400",
+            "datosInvalidosDevuelven400ConLosCampos",
+            "ciudadanoInexistenteDevuelve404",
+            "barrioSinReclamosDevuelveListaVaciaYElBarrioSeBuscaSinAcentos",
+            "duplicadoNoSePuedeAsignarAMano",
+            "contactoRepetidoDevuelve409"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.AplicacionesSeparadasIntegracionTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "eventosConectanValidacionAsignacionResolucionYCache",
+            "contratosQuedanEnSuAplicacionYElResumenConservaLosPermisos",
+            "cadaAplicacionCargaSoloSusServiciosYConsumidor"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.AsignacionManualIntegracionTest",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "reclamoOCuadrillaInexistenteDevuelve404",
+            "cuadrillaOcupadaDevuelve409",
+            "cambiarSoloElEstadoAAsignadoDevuelve409YSiguePendiente",
+            "cuadrillaDeOtraEspecialidadDevuelve409",
+            "asignaLaCuadrillaElegidaYLaMarcaOcupada",
+            "sinCuadrillaIdDevuelve400"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.AuthIntegracionTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "registroAsignaElRolPorEmailEIgnoraElQueMandaElCliente",
+            "laPasswordSeGuardaHasheada",
+            "loginDevuelveUnTokenBearer",
+            "credencialesIncorrectasDevuelven401",
+            "emailRepetidoODatosInvalidos"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.FlujoReclamoIntegracionTest",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "resumenDeZonaAplicaLosFiltrosTipoYDesde",
+            "reclamoAsignadoYReclamoResueltoLleganASusConsumidores(CapturedOutput)",
+            "altaDeReclamoSeValidaYSeAsignaCuadrilla",
+            "unReporteRepetidoQuedaDuplicadoYNoRecibeCuadrilla",
+            "resumenDeZonaOrdenaCacheaEInvalida",
+            "alResolverseSeLiberaLaCuadrillaYSeAsignaElPendiente"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.MensajeriaIntegracionTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "unEventoRepetidoSeProcesaUnaSolaVezPorCola(CapturedOutput)",
+            "falloDelObservadorRevierteElRegistroYPermiteReintentarElEvento",
+            "unMensajeMalFormadoTerminaEnLaDlq"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.SeguridadIntegracionTest",
+          "tests": 26,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "miCiudadanoEsSoloParaVecinosConCiudadano",
+            "sinTokenDevuelve401(HttpMethod, String, String)[1]",
+            "sinTokenDevuelve401(HttpMethod, String, String)[2]",
+            "sinTokenDevuelve401(HttpMethod, String, String)[3]",
+            "sinTokenDevuelve401(HttpMethod, String, String)[4]",
+            "sinTokenDevuelve401(HttpMethod, String, String)[5]",
+            "sinTokenDevuelve401(HttpMethod, String, String)[6]",
+            "sinTokenDevuelve401(HttpMethod, String, String)[7]",
+            "tokenInvalidoDevuelve401InclusoEnEndpointsPublicos",
+            "elVecinoVeSoloSuCiudadanoYSuHistorial",
+            "swaggerYAuthSonPublicos",
+            "conRolAdminPasaLaAutorizacion(HttpMethod, String, String)[1]",
+            "conRolAdminPasaLaAutorizacion(HttpMethod, String, String)[2]",
+            "conRolAdminPasaLaAutorizacion(HttpMethod, String, String)[3]",
+            "conRolAdminPasaLaAutorizacion(HttpMethod, String, String)[4]",
+            "conRolAdminPasaLaAutorizacion(HttpMethod, String, String)[5]",
+            "conRolAdminPasaLaAutorizacion(HttpMethod, String, String)[6]",
+            "conRolAdminPasaLaAutorizacion(HttpMethod, String, String)[7]",
+            "altaDeReclamoSigueAbiertaSinCuenta",
+            "conRolVecinoDevuelve403(HttpMethod, String, String)[1]",
+            "conRolVecinoDevuelve403(HttpMethod, String, String)[2]",
+            "conRolVecinoDevuelve403(HttpMethod, String, String)[3]",
+            "conRolVecinoDevuelve403(HttpMethod, String, String)[4]",
+            "conRolVecinoDevuelve403(HttpMethod, String, String)[5]",
+            "conRolVecinoDevuelve403(HttpMethod, String, String)[6]",
+            "conRolVecinoDevuelve403(HttpMethod, String, String)[7]"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.SoapReclamosIntegracionTest",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "consultaElEstadoDeUnReclamo",
+            "reclamoInexistenteDevuelveFaultDeCliente",
+            "publicaElWsdl",
+            "idMalFormadoLoRechazaElXsd"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.messaging.ConsumidoresIndependientesTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.messaging.EventosDeEstadoTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.patterns.factory.ReclamoFactoryTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.patterns.strategy.CriticidadStrategyTest",
+          "tests": 16,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.service.ActualizacionResumenTest",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.service.AsignacionCuadrillasTest",
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.service.CacheResumenesTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.service.ComparadoresYClientesTest$ComparadorStub",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.service.ComparadoresYClientesTest$Geo",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.service.ComparadoresYClientesTest$Llm",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.service.ComparadoresYClientesTest",
+          "tests": 0,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.service.DetectorDeDuplicadosTest",
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.service.SvcAuthTest",
+          "tests": 10,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.service.SvcIATest",
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.util.UtilTest$AnonimizadorTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.util.UtilTest$BitacoraTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.util.UtilTest$ValidadorTest",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "clase": "com.municipio.ticketera.util.UtilTest",
+          "tests": 0,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "comando_equivalente": "mvn test -Dtest=DespliegueComposeIT,NominatimRealIT,GeminiRealIT",
+      "resultado": "BUILD SUCCESS",
+      "totales": {
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "origen": {
+        "reportes": "target/surefire-reports/TEST-*.xml",
+        "sha256_log": "78e0f7048e9266064025ccb9fcf9a65d7934140c5ba28261fc1182eb4b6dfd54"
+      },
+      "clases": [
+        {
+          "clase": "com.municipio.ticketera.integracion.DespliegueComposeIT",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "contenedoresSeparanContratosYCompartenJWT",
+            "eventosEntreProcesosMantienenDuplicadosCuadrillasSOAPYCache",
+            "reclamosSigueDisponibleMientrasIAEstaDetenidaYProcesaElEventoAlVolver",
+            "dockerfilePorDefectoConservaElModoIntegrado"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.GeminiRealIT",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "dosReportesDelMismoCableSeVinculanComoDuplicados",
+            "resumenRealConservaLosReclamosYSuPrioridadSinFallback"
+          ]
+        },
+        {
+          "clase": "com.municipio.ticketera.integracion.NominatimRealIT",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "casos": [
+            "registrarDireccionCompletaBarrioYCoordenadasReales"
+          ]
+        }
+      ]
+    }
+  ],
+  "capturas": [
+    {
+      "archivo": "compose.json",
+      "origen": "target/evidencias/compose.json",
+      "sha256": "a75d0dbfd6ccce83531520773b40d3e1bb8f84fda37eab3b8dc20e7dfe0688aa"
+    },
+    {
+      "archivo": "nominatim.json",
+      "origen": "target/evidencias/nominatim.json",
+      "sha256": "15b329fb8f7fa872ac8eb07c24778c23d9a0b8e72d7bfea291c0f09f984dde90"
+    },
+    {
+      "archivo": "gemini.json",
+      "origen": "target/evidencias/gemini.json",
+      "sha256": "7d3ad984fcc3b31094783a3c77498ba01f43584ce5ff3bc008f05ae2fc167ffe"
+    },
+    {
+      "archivo": "gemini-duplicados.json",
+      "origen": "target/evidencias/gemini-duplicados.json",
+      "sha256": "8922163d044c074aadd6751a7ec58e6edf787b32638eabc103cac0f0ad31bb6c"
+    }
+  ],
+  "formato_capturas": "Saltos de linea normalizados a LF; respuestas JSON conservadas."
+}

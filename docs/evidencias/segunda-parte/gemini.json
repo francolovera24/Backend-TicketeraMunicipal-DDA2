@@ -1,0 +1,36 @@
+{
+  "servicio" : "gemini",
+  "datos" : {
+    "reclamos" : [ "139584d4-39e4-4920-be54-3144f7989110", "5d600359-eb7c-4ca8-addd-f3e04a2e15c3" ],
+    "respuesta" : {
+      "barrio" : "Gemini-933f7262-ff0f-46c2-9878-700b03c9863d",
+      "tipo" : null,
+      "desde" : null,
+      "textoResumen" : "En el barrio se registran reclamos vinculados a servicios electricos y al estado de la calzada. \n\nSe debe atender en primer lugar el reclamo de cableado, que reporta un cable pelado sobre la vereda, debido al riesgo electrico inminente para los transeuntes. En segundo termino, corresponde intervenir en el reclamo de bacheo por un pozo profundo en la calzada para prevenir accidentes viales y danos a los vehiculos.",
+      "timestampGeneracion" : "2026-10-04T20:23:24.330594199Z",
+      "generadoPorIa" : true,
+      "ranking" : [ {
+        "reclamoId" : "139584d4-39e4-4920-be54-3144f7989110",
+        "tipo" : "CABLEADO",
+        "descripcion" : "Cable pelado sobre la vereda con riesgo electrico",
+        "direccion" : "Calle de prueba 123",
+        "estado" : "ASIGNADO",
+        "urgente" : true,
+        "antiguedadHoras" : 0,
+        "score" : 100
+      }, {
+        "reclamoId" : "5d600359-eb7c-4ca8-addd-f3e04a2e15c3",
+        "tipo" : "BACHEO",
+        "descripcion" : "Pozo profundo en la calzada",
+        "direccion" : "Calle de prueba 123",
+        "estado" : "ASIGNADO",
+        "urgente" : false,
+        "antiguedadHoras" : 0,
+        "score" : 25
+      } ]
+    },
+    "modelo" : "gemini-3.8-flash",
+    "despliegue" : "separado"
+  },
+  "fecha" : 1791145404.343117500
+}

@@ -1,0 +1,46 @@
+{
+  "servicio" : "gemini-duplicados",
+  "datos" : {
+    "original" : {
+      "id" : "f9d70dd2-18c4-4a46-9332-c083614b7423",
+      "tipo" : "CABLEADO",
+      "descripcion" : "Cable pelado caido sobre la vereda frente al numero 123",
+      "estado" : "ASIGNADO",
+      "urgente" : true,
+      "scoreCriticidad" : 100,
+      "ubicacion" : {
+        "direccion" : "Calle de prueba 123",
+        "lat" : -34.563,
+        "lon" : -58.456
+      },
+      "barrio" : "Duplicados-Gemini-fbca0849-a6a5-4d27-a8c9-497a89525639",
+      "ciudadanoId" : "95e470d6-9169-4208-914d-4dd25908087c",
+      "cuadrillaId" : "a51f6e98-e7ff-45d4-a418-554900de99c4",
+      "reclamoOriginalId" : null,
+      "fechaCreacion" : "2026-10-04T20:23:03.612694Z",
+      "fechaActualizacion" : "2026-10-04T20:23:03.843478Z"
+    },
+    "duplicado" : {
+      "id" : "6d7cd563-e581-4f18-a18d-3c7e3046cf67",
+      "tipo" : "CABLEADO",
+      "descripcion" : "En el 123 sigue el mismo cable sin aislacion tirado en la vereda",
+      "estado" : "DUPLICADO",
+      "urgente" : true,
+      "scoreCriticidad" : 0,
+      "ubicacion" : {
+        "direccion" : "Calle de prueba 123",
+        "lat" : -34.563,
+        "lon" : -58.456
+      },
+      "barrio" : "Duplicados-Gemini-fbca0849-a6a5-4d27-a8c9-497a89525639",
+      "ciudadanoId" : "95e470d6-9169-4208-914d-4dd25908087c",
+      "cuadrillaId" : null,
+      "reclamoOriginalId" : "f9d70dd2-18c4-4a46-9332-c083614b7423",
+      "fechaCreacion" : "2026-10-04T20:23:03.868123Z",
+      "fechaActualizacion" : "2026-10-04T20:23:15.020070Z"
+    },
+    "modelo" : "gemini-3.8-flash",
+    "despliegue" : "separado"
+  },
+  "fecha" : 1791145395.257280900
+}

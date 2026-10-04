@@ -1,0 +1,30 @@
+{
+  "contratos_y_permisos" : {
+    "endpoints_ajenos" : 404,
+    "ia" : "4a0bacc029f8664120196fe048024bba311c241d8f577be031966ee7fcdbe40f",
+    "anonimo" : 401,
+    "reclamos" : "c7bdb6bdb20ff1e26d02ce9c532cb3475e29fb7f7c87b537dbd0286ac49c08eb",
+    "admin" : 200,
+    "vecino" : 403
+  },
+  "flujo_entre_procesos" : {
+    "soap" : 200,
+    "cache_despues" : "2026-10-04T20:21:47.675208651Z",
+    "duplicado" : "c1cc929e-6a53-4683-bc24-05a7961df71e",
+    "original" : "1f144683-ee36-46ba-8a66-d9627143819d",
+    "cache_antes" : "2026-10-04T20:21:47.469567925Z",
+    "pendiente_reasignado" : "fa30ee1d-75d6-43e8-9cb5-aabd7536992e"
+  },
+  "reinicio_ia" : {
+    "estado_al_volver" : "ASIGNADO",
+    "evento_retenido_en_rabbitmq" : true,
+    "reclamo" : "c6d1a558-480d-4a72-b759-b2605e4bb9fd",
+    "alta_sin_ia" : "NUEVO"
+  },
+  "modo_integrado" : {
+    "rest_auth" : 200,
+    "soap_wsdl" : 200,
+    "resumen_en_mismo_puerto" : 200
+  },
+  "fecha" : "2026-10-04T20:22:37.111719600Z"
+}

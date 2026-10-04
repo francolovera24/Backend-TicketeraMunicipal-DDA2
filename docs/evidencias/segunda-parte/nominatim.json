@@ -1,0 +1,32 @@
+{
+  "servicio" : "nominatim",
+  "datos" : {
+    "despliegue" : "separado",
+    "respuesta" : {
+      "id" : "106ca740-d6bb-4bb1-8f29-c512b4171513",
+      "tipo" : "BACHEO",
+      "descripcion" : "Bache de prueba frente a la avenida",
+      "estado" : "NUEVO",
+      "urgente" : false,
+      "scoreCriticidad" : 0,
+      "ubicacion" : {
+        "direccion" : "Avenida Cabildo 2040",
+        "lat" : -34.5627267,
+        "lon" : -58.4564287
+      },
+      "barrio" : "Belgrano",
+      "ciudadanoId" : "aa32d311-5b99-455b-9ff6-1d6f38bcc971",
+      "cuadrillaId" : null,
+      "reclamoOriginalId" : null,
+      "fechaCreacion" : "2026-10-04T20:23:55.884109Z",
+      "fechaActualizacion" : "2026-10-04T20:23:55.884109Z"
+    },
+    "solicitud" : {
+      "tipo" : "BACHEO",
+      "direccion" : "Avenida Cabildo 2040",
+      "descripcion" : "Bache de prueba frente a la avenida",
+      "ciudadanoId" : "aa32d311-5b99-455b-9ff6-1d6f38bcc971"
+    }
+  },
+  "fecha" : 1791145435.945474200
+}

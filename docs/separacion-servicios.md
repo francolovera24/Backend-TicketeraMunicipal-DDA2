@@ -8,6 +8,10 @@
 | Aplicaciones independientes | Implementado | ReclamosApplication e IAApplication tienen componentes y ejecutables propios, con PostgreSQL compartido. |
 | Despliegue separado con Docker Compose | Implementado | Reclamos e IA tienen contenedores propios, healthchecks y configuracion por modulo. El modo integrado conserva su archivo Compose. |
 | Verificacion y documentacion del sistema separado | Comprobado | Contratos OpenAPI, seguridad, eventos, resumenes y cache; Nominatim y Gemini reales desde los contenedores. README y diagramas describen el arranque y su demostracion. |
+| Documentacion y evidencias de la Segunda Parte | Documentado | Guia de contratos y requisitos, capturas revisadas de las pruebas y resumen de resultados de Surefire. |
+
+La [guia de la Segunda Parte](segunda-parte.md) reune la cobertura de la entrega,
+los contratos y las [evidencias conservadas](evidencias/segunda-parte/).
 
 ## Composicion
 
@@ -211,7 +215,9 @@ del mismo cable como DUPLICADO sin cuadrilla. La revision del texto confirmo
 la correspondencia con los datos de prueba.
 
 Los JSON de APIs incluyen despliegue=separado y quedan en target/evidencias/;
-los logs de contenedores son locales. Resultados y limitaciones de las APIs
+los logs de contenedores son locales. Una copia revisada de los JSON y un
+resumen de Surefire se conservan en docs/evidencias/segunda-parte/.
+Resultados y limitaciones de las APIs
 en docs/evidencias/apis-reales.md. El README incluye un recorrido para levantar
 y demostrar el sistema sin depender de las pruebas automatizadas.
 

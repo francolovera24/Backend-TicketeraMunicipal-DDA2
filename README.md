@@ -20,6 +20,9 @@ aplicaciones; `docker-compose.integrado.yml` conserva el despliegue integrado.
 Ver [composicion, avances y ejecucion](docs/separacion-servicios.md),
 `CLAUDE.md` y el diagrama `docs/09_diagrama_aplicaciones.puml`.
 
+La [guia de la Segunda Parte](docs/segunda-parte.md) relaciona los requisitos
+con los contratos, la arquitectura, la demostracion y las evidencias conservadas.
+
 Los diagramas de clases describen el codigo compartido; 04 y 05a conservan
 las vistas del modo integrado. 05 muestra los contenedores separados, 06 el
 intercambio de eventos entre aplicaciones y 09 sus responsabilidades.
@@ -356,6 +359,8 @@ cache y recuperacion de eventos tras detener y arrancar IA. Tambien verifica
 los contratos OpenAPI exclusivos y el rechazo de un JWT invalido. La evidencia sin
 tokens ni claves se guarda en `target/evidencias/compose.json`; los logs quedan
 en `target/`. No forma parte de la suite habitual por terminar en `IT`.
+Una copia revisada de la ejecucion verificada esta en
+`docs/evidencias/segunda-parte/`, junto con el resumen de Surefire.
 
 - **Unitarios** (sin Spring ni Docker): fabricas, estrategias de criticidad,
   transiciones de estado, cache con TTL, detector de duplicados, comparador
@@ -416,6 +421,8 @@ en `target/evidencias/nominatim.json`, `target/evidencias/gemini.json` o
 Revisar el texto generado para comprobar que describe los problemas y respeta
 su prioridad: la prueba automatica no evalua toda su exactitud semantica.
 Los archivos de evidencia son locales y `target/` esta ignorado por Git.
+La copia revisada de la entrega se conserva en `docs/evidencias/segunda-parte/`;
+repetir las pruebas no modifica esa copia.
 Estas pruebas requieren Internet y disponibilidad o cuota del proveedor;
 Gemini puede consumir cuota facturable segun la configuracion del proyecto.
 Ver la [evidencia de ejecucion](docs/evidencias/apis-reales.md) y los
