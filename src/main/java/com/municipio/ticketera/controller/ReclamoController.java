@@ -87,7 +87,8 @@ public class ReclamoController {
     @ApiResponse(responseCode = "403", description = "El token no tiene rol ADMIN")
     @PutMapping("/{id}/estado")
     @Operation(summary = "Cambiar el estado de un reclamo",
-            description = "ASIGNADO publica reclamo.asignado y RESUELTO publica reclamo.resuelto.")
+            description = "ASIGNADO publica reclamo.asignado y RESUELTO publica reclamo.resuelto. "
+                    + "Los otros cambios validos publican reclamo.estado_cambiado para invalidar el resumen.")
     @ApiResponse(responseCode = "404", description = "Reclamo inexistente")
     @ApiResponse(responseCode = "409", description = "Transicion de estado no permitida")
     public ReclamoResponse cambiarEstado(@PathVariable UUID id, @Valid @RequestBody CambioEstadoRequest dto) {

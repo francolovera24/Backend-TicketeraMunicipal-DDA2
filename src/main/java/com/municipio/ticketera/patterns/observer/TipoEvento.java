@@ -10,6 +10,7 @@ public enum TipoEvento {
     RECLAMO_VALIDADO("reclamo.validado"),
     RECLAMO_ASIGNADO("reclamo.asignado"),
     RECLAMO_RESUELTO("reclamo.resuelto"),
+    RECLAMO_ESTADO_CAMBIADO("reclamo.estado_cambiado"),
     ZONA_RESUMEN("zona.resumen");
 
     private final String routingKey;

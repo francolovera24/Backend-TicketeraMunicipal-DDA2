@@ -208,6 +208,11 @@ Flujo de alta: `reclamo.creado` -> `SvcIA` valida el reclamo (duplicados) ->
 - `SvcIA`: invalida la cache del resumen del barrio. Ante `reclamo.creado`
   busca si es duplicado; si no lo es, calcula su score inicial y publica
   `reclamo.validado`.
+- Cada cambio de estado valido publica un evento: `reclamo.asignado`,
+  `reclamo.resuelto` o `reclamo.estado_cambiado` (EN_ANALISIS, EN_PROCESO y
+  RECHAZADO). Al consumirlo, SvcIA invalida todas las variantes del resumen del
+  barrio; la siguiente consulta lo recalcula. La actualizacion es asincronica.
+  El evento general no llega a la cola de cuadrillas.
 - `SvcCuadrillas`: con `reclamo.validado` asigna una cuadrilla libre de la
   especialidad (si no hay, queda pendiente); al resolverse, libera la cuadrilla
   y le asigna el reclamo pendiente mas antiguo de ese tipo.

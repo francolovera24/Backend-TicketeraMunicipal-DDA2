@@ -168,7 +168,10 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
 - Exchange topic `ticketera.eventos`. Colas durables, mensajes persistentes.
 - `Evento`: eventId (UUID), tipo, timestamp, version, correlationId, reclamoId, barrio.
 - Routing keys: reclamo.creado, reclamo.validado, reclamo.asignado, reclamo.resuelto,
-  zona.resumen.
+  reclamo.estado_cambiado, zona.resumen.
+- Todo cambio de estado valido publica un evento. EN_ANALISIS, EN_PROCESO y
+  RECHAZADO usan reclamo.estado_cambiado; SvcIA invalida las variantes del barrio
+  al consumirlo. La actualizacion del resumen es asincronica.
 - `Broker.publicar` completa eventId/timestamp/correlationId y publica SOLO a
   RabbitMQ. NO debe llamar a los observadores en memoria (un esqueleto previo lo
   hacia y dejaba las colas sin consumidores: es un error conocido).
