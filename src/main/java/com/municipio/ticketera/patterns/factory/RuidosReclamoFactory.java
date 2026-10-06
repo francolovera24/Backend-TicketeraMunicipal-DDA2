@@ -16,7 +16,8 @@ public class RuidosReclamoFactory extends ReclamoFactory {
     }
 
     @Override
-    protected Reclamo construir(String descripcion, Ubicacion ubicacion, Barrio barrio, Ciudadano ciudadano) {
-        return new Reclamo(TipoDeReclamo.RUIDOS_MOLESTOS, descripcion, ubicacion, barrio, ciudadano);
+    protected Reclamo construir(String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+                                Ciudadano ciudadano) {
+        return new Reclamo(TipoDeReclamo.RUIDOS_MOLESTOS, titulo, descripcion, ubicacion, barrio, ciudadano);
     }
 }

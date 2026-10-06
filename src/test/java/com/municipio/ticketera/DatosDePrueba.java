@@ -36,7 +36,7 @@ public final class DatosDePrueba {
     }
 
     public static Reclamo reclamo(TipoDeReclamo tipo, String descripcion, Ubicacion ubicacion, Barrio barrio) {
-        Reclamo reclamo = new Reclamo(tipo, descripcion, ubicacion, barrio, ciudadano());
+        Reclamo reclamo = new Reclamo(tipo, "Titulo de prueba", descripcion, ubicacion, barrio, ciudadano());
         ReflectionTestUtils.setField(reclamo, "id", UUID.randomUUID());
         return reclamo;
     }

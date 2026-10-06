@@ -16,7 +16,8 @@ public class BacheoReclamoFactory extends ReclamoFactory {
     }
 
     @Override
-    protected Reclamo construir(String descripcion, Ubicacion ubicacion, Barrio barrio, Ciudadano ciudadano) {
-        return new Reclamo(TipoDeReclamo.BACHEO, descripcion, ubicacion, barrio, ciudadano);
+    protected Reclamo construir(String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+                                Ciudadano ciudadano) {
+        return new Reclamo(TipoDeReclamo.BACHEO, titulo, descripcion, ubicacion, barrio, ciudadano);
     }
 }

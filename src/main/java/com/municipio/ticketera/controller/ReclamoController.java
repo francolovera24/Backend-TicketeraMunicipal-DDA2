@@ -55,7 +55,7 @@ public class ReclamoController {
     @ApiResponse(responseCode = "400", description = "Datos invalidos")
     @ApiResponse(responseCode = "404", description = "Ciudadano inexistente")
     public ResponseEntity<ReclamoResponse> altaReclamo(@Valid @RequestBody CrearReclamoRequest dto) {
-        Reclamo reclamo = svcReclamos.registrarReclamo(dto.ciudadanoId(), dto.tipo(), dto.descripcion(),
+        Reclamo reclamo = svcReclamos.registrarReclamo(dto.ciudadanoId(), dto.tipo(), dto.titulo(), dto.descripcion(),
                 new Ubicacion(dto.direccion().trim(), dto.lat(), dto.lon()), dto.barrio());
         URI ubicacion = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(reclamo.getId()).toUri();

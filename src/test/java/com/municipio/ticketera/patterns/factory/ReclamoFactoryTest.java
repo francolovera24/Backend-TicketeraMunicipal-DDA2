@@ -35,20 +35,36 @@ class ReclamoFactoryTest {
     @ParameterizedTest
     @MethodSource("fabricas")
     void cadaFabricaCreaSuTipoEnEstadoNuevo(ReclamoFactory fabrica, TipoDeReclamo tipo, boolean urgente) {
-        Reclamo reclamo = fabrica.crear("  Problema en la vereda  ", ubicacion, barrio, ciudadano);
+        Reclamo reclamo = fabrica.crear("  Pozo en la vereda  ", "  Problema en la vereda  ", ubicacion, barrio,
+                ciudadano);
 
         assertThat(fabrica.getTipo()).isEqualTo(tipo);
         assertThat(reclamo.getTipo()).isEqualTo(tipo);
         assertThat(reclamo.getEstado()).isEqualTo(Estado.NUEVO);
         assertThat(reclamo.isUrgente()).isEqualTo(urgente);
+        assertThat(reclamo.getTitulo()).isEqualTo("Pozo en la vereda");
         assertThat(reclamo.getDescripcion()).isEqualTo("Problema en la vereda");
         assertThat(reclamo.getBarrio()).isSameAs(barrio);
         assertThat(reclamo.getCiudadano()).isSameAs(ciudadano);
     }
 
     @Test
+    void rechazaTituloVacio() {
+        assertThatThrownBy(() -> new BacheoReclamoFactory().crear("   ", "Pozo grande", ubicacion, barrio, ciudadano))
+                .isInstanceOf(ValidacionException.class)
+                .hasMessageContaining("titulo");
+    }
+
+    @Test
+    void rechazaTituloDemasiadoLargo() {
+        String largo = "x".repeat(ReclamoFactory.MAX_TITULO + 1);
+        assertThatThrownBy(() -> new BacheoReclamoFactory().crear(largo, "Pozo grande", ubicacion, barrio, ciudadano))
+                .isInstanceOf(ValidacionException.class);
+    }
+
+    @Test
     void rechazaDescripcionVacia() {
-        assertThatThrownBy(() -> new BacheoReclamoFactory().crear("   ", ubicacion, barrio, ciudadano))
+        assertThatThrownBy(() -> new BacheoReclamoFactory().crear("Pozo", "   ", ubicacion, barrio, ciudadano))
                 .isInstanceOf(ValidacionException.class)
                 .hasMessageContaining("descripcion");
     }
@@ -56,14 +72,14 @@ class ReclamoFactoryTest {
     @Test
     void rechazaDescripcionDemasiadoLarga() {
         String larga = "x".repeat(ReclamoFactory.MAX_DESCRIPCION + 1);
-        assertThatThrownBy(() -> new BacheoReclamoFactory().crear(larga, ubicacion, barrio, ciudadano))
+        assertThatThrownBy(() -> new BacheoReclamoFactory().crear("Pozo", larga, ubicacion, barrio, ciudadano))
                 .isInstanceOf(ValidacionException.class);
     }
 
     @Test
     void rechazaSinDireccion() {
         Ubicacion sinDireccion = new Ubicacion(" ", null, null);
-        assertThatThrownBy(() -> new BacheoReclamoFactory().crear("Pozo", sinDireccion, barrio, ciudadano))
+        assertThatThrownBy(() -> new BacheoReclamoFactory().crear("Pozo", "Pozo", sinDireccion, barrio, ciudadano))
                 .isInstanceOf(ValidacionException.class)
                 .hasMessageContaining("direccion");
     }
@@ -85,10 +101,10 @@ class ReclamoFactoryTest {
     @Test
     void rechazaSinBarrioNiCiudadano() {
         ReclamoFactory fabrica = new BacheoReclamoFactory();
-        assertThatThrownBy(() -> fabrica.crear("Pozo", ubicacion, null, ciudadano))
+        assertThatThrownBy(() -> fabrica.crear("Pozo", "Pozo", ubicacion, null, ciudadano))
                 .isInstanceOf(ValidacionException.class)
                 .hasMessageContaining("barrio");
-        assertThatThrownBy(() -> fabrica.crear("Pozo", ubicacion, barrio, null))
+        assertThatThrownBy(() -> fabrica.crear("Pozo", "Pozo", ubicacion, barrio, null))
                 .isInstanceOf(ValidacionException.class)
                 .hasMessageContaining("ciudadano");
     }

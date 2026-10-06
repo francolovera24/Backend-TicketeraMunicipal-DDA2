@@ -109,6 +109,7 @@ curl -X POST http://localhost:8080/reclamos \
   -d '{
         "ciudadanoId": "<id-del-ciudadano>",
         "tipo": "CABLEADO",
+        "titulo": "Cable colgando sobre la vereda",
         "descripcion": "Cable pelado colgando sobre la vereda",
         "direccion": "Av. Santa Fe 3200",
         "barrio": "Palermo"
@@ -242,10 +243,10 @@ IA_GENERADOR=llm
 LLM_API_KEY=<tu key>
 LLM_MODEL=gemini-3.8-flash
 ```
-- Al modelo solo se envian barrio, tipo y descripcion, hasta 20 reclamos. Antes
-  se anonimiza la descripcion (`util.Anonimizador`): se borran el nombre y el
-  contacto del vecino y cualquier email, DNI o telefono. No detecta nombres de
-  terceros escritos en el texto.
+- Al modelo solo se envian barrio, tipo, titulo y descripcion, hasta 20 reclamos.
+  Antes se anonimizan el titulo y la descripcion (`util.Anonimizador`): se borran
+  el nombre y el contacto del vecino y cualquier email, DNI o telefono. No
+  detecta nombres de terceros escritos en el texto.
 - Timeouts de 3 s (conexion) y 20 s (lectura). Si el LLM falla o no responde,
   se devuelve el ranking con un texto de fallback (`generadoPorIa: false`), que
   se cachea solo 30 s para reintentar pronto. Un resumen generado se cachea 5 min.
@@ -259,7 +260,7 @@ estado `DUPLICADO` con `reclamoOriginalId` y no recibe cuadrilla:
    150 m (si no hay coordenadas, del mismo barrio). Casi siempre no hay
    candidatos y no se consulta al LLM.
 2. Si hay candidatos, el LLM decide si alguno describe el mismo problema. Solo
-   recibe tipo, descripcion y distancia en metros.
+   recibe tipo, titulo, descripcion y distancia en metros.
 
 Si el LLM falla, el reclamo se trata como no duplicado (mejor atender dos veces
 que no atender). Con `IA_GENERADOR=stub` la comparacion es por coincidencia de

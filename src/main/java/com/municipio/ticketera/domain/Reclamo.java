@@ -33,6 +33,9 @@ public class Reclamo {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(nullable = false, length = 150)
+    private String titulo;
+
     @Column(nullable = false, length = 1000)
     private String descripcion;
 
@@ -85,8 +88,10 @@ public class Reclamo {
         // requerido por JPA
     }
 
-    public Reclamo(TipoDeReclamo tipo, String descripcion, Ubicacion ubicacion, Barrio barrio, Ciudadano ciudadano) {
+    public Reclamo(TipoDeReclamo tipo, String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+                   Ciudadano ciudadano) {
         this.tipo = tipo;
+        this.titulo = titulo;
         this.descripcion = descripcion;
         this.ubicacion = ubicacion;
         this.barrio = barrio;
@@ -148,6 +153,10 @@ public class Reclamo {
 
     public UUID getId() {
         return id;
+    }
+
+    public String getTitulo() {
+        return titulo;
     }
 
     public String getDescripcion() {

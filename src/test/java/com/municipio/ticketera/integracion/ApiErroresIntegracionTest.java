@@ -26,21 +26,21 @@ class ApiErroresIntegracionTest extends IntegracionBase {
         assertThat(respuesta.getBody().get("title")).isEqualTo("Datos invalidos");
         assertThat(lista(respuesta.getBody().get("errores")))
                 .extracting(e -> e.get("campo"))
-                .containsExactlyInAnyOrder("ciudadanoId", "descripcion", "direccion");
+                .containsExactlyInAnyOrder("ciudadanoId", "titulo", "descripcion", "direccion");
     }
 
     @Test
     void tipoOEstadoInexistenteDevuelve400() {
         ResponseEntity<Map<String, Object>> respuesta = enviar(HttpMethod.POST, "/reclamos",
                 Map.of("ciudadanoId", UUID.randomUUID().toString(), "tipo", "VOLCAN",
-                        "descripcion", "x", "direccion", "y"));
+                        "titulo", "x", "descripcion", "x", "direccion", "y"));
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
     void sinBarrioYSinGeolocalizacionDevuelve400() {
         ResponseEntity<Map<String, Object>> respuesta = enviar(HttpMethod.POST, "/reclamos",
-                Map.of("ciudadanoId", crearCiudadano(), "tipo", "BACHEO", "descripcion", "Pozo",
+                Map.of("ciudadanoId", crearCiudadano(), "tipo", "BACHEO", "titulo", "Pozo", "descripcion", "Pozo",
                         "direccion", "Calle 1"));
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat((String) respuesta.getBody().get("detail")).contains("barrio");
@@ -49,8 +49,8 @@ class ApiErroresIntegracionTest extends IntegracionBase {
     @Test
     void ciudadanoInexistenteDevuelve404() {
         ResponseEntity<Map<String, Object>> respuesta = enviar(HttpMethod.POST, "/reclamos",
-                Map.of("ciudadanoId", UUID.randomUUID().toString(), "tipo", "BACHEO", "descripcion", "Pozo",
-                        "direccion", "Calle 1", "barrio", "Flores"));
+                Map.of("ciudadanoId", UUID.randomUUID().toString(), "tipo", "BACHEO", "titulo", "Pozo",
+                        "descripcion", "Pozo", "direccion", "Calle 1", "barrio", "Flores"));
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 

@@ -28,6 +28,7 @@ class NominatimRealIT extends IntegracionBase {
         Map<String, Object> solicitud = Map.of(
                 "ciudadanoId", crearCiudadano(),
                 "tipo", "BACHEO",
+                "titulo", "Bache de prueba",
                 "descripcion", "Bache de prueba frente a la avenida",
                 "direccion", "Avenida Cabildo 2040");
 

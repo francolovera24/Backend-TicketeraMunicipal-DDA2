@@ -104,7 +104,7 @@ class FlujoReclamoIntegracionTest extends IntegracionBase {
         Ciudadano ciudadano = repoCiudadanos.save(
                 new Ciudadano("Vecino mensajes", UUID.randomUUID() + "@test.com"));
         var barrio = svcBarrios.resolverBarrio("Mensajes-" + UUID.randomUUID());
-        var pendiente = repoReclamos.saveAndFlush(new ArboladoReclamoFactory().crear(
+        var pendiente = repoReclamos.saveAndFlush(new ArboladoReclamoFactory().crear("Ramas en el semaforo",
                 "Ramas tapando el semaforo", new Ubicacion("Calle 123", null, null), barrio, ciudadano));
         Cuadrilla cuadrilla = repoCuadrillas.saveAndFlush(
                 new Cuadrilla("Arbolado mensajes " + UUID.randomUUID(), TipoDeReclamo.ARBOLADO));

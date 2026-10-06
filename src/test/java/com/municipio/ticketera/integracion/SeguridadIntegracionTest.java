@@ -54,7 +54,7 @@ class SeguridadIntegracionTest extends IntegracionBase {
                 "{\"nombre\":\"Vecina con cuenta\",\"contacto\":\"" + UUID.randomUUID() + "@test.com\"}");
         assertThat(alta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         String propio = (String) alta.getBody().get("id");
-        String reclamo = "{\"ciudadanoId\":\"" + propio + "\",\"tipo\":\"ARBOLADO\","
+        String reclamo = "{\"ciudadanoId\":\"" + propio + "\",\"tipo\":\"ARBOLADO\",\"titulo\":\"Arbol con hongos\","
                 + "\"descripcion\":\"Arbol con hongos en la base\",\"direccion\":\"Calle 2\",\"barrio\":\"Monte Castro\"}";
         assertThat(pedir(null, HttpMethod.POST, "/reclamos", reclamo).getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
@@ -132,7 +132,7 @@ class SeguridadIntegracionTest extends IntegracionBase {
         String ciudadano = (String) sinToken().postForEntity("/ciudadanos",
                 Map.of("nombre", "Vecino sin cuenta", "contacto", UUID.randomUUID() + "@test.com"), Map.class)
                 .getBody().get("id");
-        String cuerpo = "{\"ciudadanoId\":\"" + ciudadano + "\",\"tipo\":\"ARBOLADO\","
+        String cuerpo = "{\"ciudadanoId\":\"" + ciudadano + "\",\"tipo\":\"ARBOLADO\",\"titulo\":\"Rama caida\","
                 + "\"descripcion\":\"Rama caida sobre la vereda\",\"direccion\":\"Calle 1\",\"barrio\":\"Agronomia\"}";
 
         ResponseEntity<Map> alta = pedir(null, HttpMethod.POST, "/reclamos", cuerpo);

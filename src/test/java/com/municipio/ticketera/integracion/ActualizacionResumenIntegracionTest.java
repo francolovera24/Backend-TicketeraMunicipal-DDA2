@@ -64,7 +64,7 @@ class ActualizacionResumenIntegracionTest extends IntegracionBase {
         Barrio barrio = barrios.resolverBarrio("Resumen-" + UUID.randomUUID());
         Ciudadano ciudadano = ciudadanos.save(new Ciudadano("Vecino test", UUID.randomUUID() + "@test.com"));
         Reclamo reclamo = new BacheoReclamoFactory().crear("Pozo frente a la plaza",
-                new Ubicacion("Calle 123", null, null), barrio, ciudadano);
+                "Pozo frente a la plaza", new Ubicacion("Calle 123", null, null), barrio, ciudadano);
         if (origen == Estado.ASIGNADO) {
             Cuadrilla cuadrilla = new Cuadrilla("Bacheo resumen " + UUID.randomUUID(), TipoDeReclamo.BACHEO);
             cuadrilla.marcarOcupada();

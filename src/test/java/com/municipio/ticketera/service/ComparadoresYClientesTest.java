@@ -33,9 +33,9 @@ class ComparadoresYClientesTest {
         @Test
         void detectaDescripcionesCasiIguales() {
             OptionalInt resultado = stub.buscarMismoProblema(
-                    new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Bache muy profundo esquina Cabildo Juramento", null),
-                    List.of(new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Luminaria rota", 10),
-                            new ReclamoParaComparar(TipoDeReclamo.BACHEO,
+                    new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Bache", "Bache muy profundo esquina Cabildo Juramento", null),
+                    List.of(new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Luminaria", "Luminaria rota", 10),
+                            new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Bache",
                                     "Bache profundo en la esquina de Cabildo y Juramento", 12)));
             assertThat(resultado).hasValue(1);
         }
@@ -43,8 +43,8 @@ class ComparadoresYClientesTest {
         @Test
         void noConfundeProblemasDistintos() {
             OptionalInt resultado = stub.buscarMismoProblema(
-                    new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Pozo grande", null),
-                    List.of(new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Otro pozo", 10)));
+                    new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Pozo", "Pozo grande", null),
+                    List.of(new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Pozo", "Otro pozo", 10)));
             assertThat(resultado).isEmpty();
         }
 
@@ -59,30 +59,33 @@ class ComparadoresYClientesTest {
     class Llm {
 
         @Test
-        void elPromptDelResumenSoloLlevaBarrioTipoYDescripcion() {
+        void elPromptDelResumenLlevaBarrioTipoTituloYDescripcion() {
             String prompt = LlmClient.armarPrompt("Palermo",
-                    List.of(new ReclamoParaResumen(TipoDeReclamo.CABLEADO, "Cable   pelado\nen la vereda")));
+                    List.of(new ReclamoParaResumen(TipoDeReclamo.CABLEADO, "Cable colgando",
+                            "Cable   pelado\nen la vereda")));
             assertThat(prompt).isEqualTo(
-                    "Barrio: Palermo\nReclamos activos (1), ordenados por prioridad:\n1. [CABLEADO] Cable pelado en la vereda");
+                    "Barrio: Palermo\nReclamos activos (1), ordenados por prioridad:\n"
+                            + "1. [CABLEADO] Cable colgando: Cable pelado en la vereda");
         }
 
         @Test
         void elPromptDelResumenSeRecortaA20Reclamos() {
             List<ReclamoParaResumen> muchos = IntStream.range(0, 25)
-                    .mapToObj(i -> new ReclamoParaResumen(TipoDeReclamo.BACHEO, "Pozo " + i))
+                    .mapToObj(i -> new ReclamoParaResumen(TipoDeReclamo.BACHEO, "Titulo " + i, "Pozo " + i))
                     .toList();
             String prompt = LlmClient.armarPrompt("Flores", muchos);
-            assertThat(prompt).contains("20. [BACHEO] Pozo 19").doesNotContain("Pozo 20").contains("y 5 reclamos mas");
+            assertThat(prompt).contains("20. [BACHEO] Titulo 19: Pozo 19")
+                    .doesNotContain("Pozo 20").contains("y 5 reclamos mas");
         }
 
         @Test
         void elPromptDeDuplicadosIncluyeLaDistancia() {
             String prompt = LlmClient.armarPromptDuplicados(
-                    new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Pozo", null),
-                    List.of(new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Bache", 18),
-                            new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Hueco", null)));
-            assertThat(prompt).contains("1. [BACHEO] (a 18 m) Bache")
-                    .contains("2. [BACHEO] (distancia desconocida, mismo barrio) Hueco");
+                    new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Pozo nuevo", "Pozo", null),
+                    List.of(new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Bache viejo", "Bache", 18),
+                            new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Hueco viejo", "Hueco", null)));
+            assertThat(prompt).contains("1. [BACHEO] (a 18 m) Bache viejo: Bache")
+                    .contains("2. [BACHEO] (distancia desconocida, mismo barrio) Hueco viejo: Hueco");
         }
 
         @Test

@@ -33,6 +33,7 @@ public record ResumenDeZona(
     public record ItemRanking(
             UUID reclamoId,
             TipoDeReclamo tipo,
+            String titulo,
             String descripcion,
             String direccion,
             Estado estado,

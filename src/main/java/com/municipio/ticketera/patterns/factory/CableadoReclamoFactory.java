@@ -19,8 +19,9 @@ public class CableadoReclamoFactory extends ReclamoFactory {
     }
 
     @Override
-    protected Reclamo construir(String descripcion, Ubicacion ubicacion, Barrio barrio, Ciudadano ciudadano) {
-        Reclamo reclamo = new Reclamo(TipoDeReclamo.CABLEADO, descripcion, ubicacion, barrio, ciudadano);
+    protected Reclamo construir(String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+                                Ciudadano ciudadano) {
+        Reclamo reclamo = new Reclamo(TipoDeReclamo.CABLEADO, titulo, descripcion, ubicacion, barrio, ciudadano);
         reclamo.marcarUrgente();
         return reclamo;
     }
