@@ -17,6 +17,9 @@ public record CrearReclamoRequest(
         @Schema(example = "CABLEADO")
         @NotNull TipoDeReclamo tipo,
 
+        @Schema(description = "Titulo o asunto corto del reclamo", example = "Cable colgando sobre la vereda")
+        @NotBlank @Size(max = 150) String titulo,
+
         @Schema(example = "Cable pelado colgando sobre la vereda")
         @NotBlank @Size(max = 1000) String descripcion,
 

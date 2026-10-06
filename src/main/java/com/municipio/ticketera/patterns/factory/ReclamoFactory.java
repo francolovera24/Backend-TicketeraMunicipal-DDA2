@@ -15,21 +15,26 @@ import com.municipio.ticketera.util.Validador;
  */
 public abstract class ReclamoFactory {
 
+    static final int MAX_TITULO = 150;
     static final int MAX_DESCRIPCION = 1000;
     static final int MAX_DIRECCION = 255;
 
-    public final Reclamo crear(String descripcion, Ubicacion ubicacion, Barrio barrio, Ciudadano ciudadano) {
-        validar(descripcion, ubicacion, barrio, ciudadano);
-        return construir(descripcion.trim(), ubicacion, barrio, ciudadano);
+    public final Reclamo crear(String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+                               Ciudadano ciudadano) {
+        validar(titulo, descripcion, ubicacion, barrio, ciudadano);
+        return construir(titulo.trim(), descripcion.trim(), ubicacion, barrio, ciudadano);
     }
 
     /** Tipo de reclamo que fabrica esta implementacion. */
     public abstract TipoDeReclamo getTipo();
 
-    protected abstract Reclamo construir(String descripcion, Ubicacion ubicacion, Barrio barrio, Ciudadano ciudadano);
+    protected abstract Reclamo construir(String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+                                         Ciudadano ciudadano);
 
     /** Paso de validacion del metodo plantilla; una subclase puede sumar reglas propias. */
-    protected void validar(String descripcion, Ubicacion ubicacion, Barrio barrio, Ciudadano ciudadano) {
+    protected void validar(String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+                           Ciudadano ciudadano) {
+        Validador.largoMaximo(Validador.requerido(titulo, "titulo"), MAX_TITULO, "titulo");
         Validador.largoMaximo(Validador.requerido(descripcion, "descripcion"), MAX_DESCRIPCION, "descripcion");
         Validador.presente(ubicacion, "ubicacion");
         Validador.largoMaximo(Validador.requerido(ubicacion.getDireccion(), "direccion"), MAX_DIRECCION, "direccion");

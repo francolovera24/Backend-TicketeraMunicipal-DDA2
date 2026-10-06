@@ -215,9 +215,11 @@ public class SvcIA implements Observador {
      * contacto del vecino que reclamo, y emails, DNI y telefonos que aparezcan.
      */
     static ReclamoParaResumen anonimizar(Reclamo reclamo) {
+        String titulo = Anonimizador.anonimizar(reclamo.getTitulo(),
+                reclamo.getCiudadano().getNombre(), reclamo.getCiudadano().getContacto());
         String descripcion = Anonimizador.anonimizar(reclamo.getDescripcion(),
                 reclamo.getCiudadano().getNombre(), reclamo.getCiudadano().getContacto());
-        return new ReclamoParaResumen(reclamo.getTipo(), descripcion);
+        return new ReclamoParaResumen(reclamo.getTipo(), titulo, descripcion);
     }
 
     /**
@@ -237,7 +239,7 @@ public class SvcIA implements Observador {
                     long similares = porTipo.get(r.getTipo()) - 1;
                     int score = calcularScore(r, similares);
                     repoReclamo.actualizarScore(r.getId(), score);
-                    ItemRanking item = new ItemRanking(r.getId(), r.getTipo(), r.getDescripcion(),
+                    ItemRanking item = new ItemRanking(r.getId(), r.getTipo(), r.getTitulo(), r.getDescripcion(),
                             r.getUbicacion().getDireccion(), r.getEstado(), r.isUrgente(),
                             r.calcularAntiguedad(), score);
                     return new Fila(item, anonimizar(r));

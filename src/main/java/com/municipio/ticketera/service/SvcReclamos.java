@@ -63,7 +63,7 @@ public class SvcReclamos {
      * Si faltan el barrio o las coordenadas se consultan a API_Geo; el barrio
      * informado por el vecino tiene prioridad sobre el geocodificado.
      */
-    public Reclamo registrarReclamo(UUID ciudadanoId, TipoDeReclamo tipo, String descripcion,
+    public Reclamo registrarReclamo(UUID ciudadanoId, TipoDeReclamo tipo, String titulo, String descripcion,
                                     Ubicacion ubicacion, String nombreBarrio) {
         Validador.presente(ciudadanoId, "ciudadanoId");
         Validador.presente(tipo, "tipo");
@@ -87,10 +87,10 @@ public class SvcReclamos {
             throw new ValidacionException(
                     "No se pudo determinar el barrio a partir de la direccion; informelo en el campo barrio");
         }
-        return registrar(ciudadanoId, tipo, descripcion, ubicacionFinal, svcBarrios.resolverBarrio(barrioFinal));
+        return registrar(ciudadanoId, tipo, titulo, descripcion, ubicacionFinal, svcBarrios.resolverBarrio(barrioFinal));
     }
 
-    private Reclamo registrar(UUID ciudadanoId, TipoDeReclamo tipo, String descripcion,
+    private Reclamo registrar(UUID ciudadanoId, TipoDeReclamo tipo, String titulo, String descripcion,
                               Ubicacion ubicacion, Barrio barrio) {
         ReclamoFactory fabrica = fabricas.get(tipo);
         if (fabrica == null) {
@@ -100,7 +100,7 @@ public class SvcReclamos {
         return tx.execute(estado -> {
             Ciudadano ciudadano = ciudadanoRepo.findById(ciudadanoId)
                     .orElseThrow(() -> new RecursoNoEncontradoException("Ciudadano", ciudadanoId));
-            Reclamo reclamo = repo.save(fabrica.crear(descripcion, ubicacion, barrio, ciudadano));
+            Reclamo reclamo = repo.save(fabrica.crear(titulo, descripcion, ubicacion, barrio, ciudadano));
             ciudadano.agregarReclamoAlHistorial(reclamo);
             broker.publicar(Evento.de(TipoEvento.RECLAMO_CREADO, reclamo.getId(), barrio.getNombre()));
             log.info("reclamo.registrado", "reclamoId", reclamo.getId(), "tipo", tipo,

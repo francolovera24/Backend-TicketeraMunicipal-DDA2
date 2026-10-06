@@ -5,13 +5,13 @@ import java.util.List;
 
 /**
  * Puerto de salida hacia el generador de texto (LLM o stub).
- * Por privacidad solo recibe barrio, tipo y descripcion: nunca datos del ciudadano.
+ * Por privacidad solo recibe barrio, tipo, titulo y descripcion: nunca datos del ciudadano.
  */
 public interface GeneradorDeResumen {
 
     String generarTexto(String barrio, List<ReclamoParaResumen> reclamosOrdenados);
 
     /** Datos minimos de un reclamo que pueden salir del sistema. */
-    record ReclamoParaResumen(TipoDeReclamo tipo, String descripcion) {
+    record ReclamoParaResumen(TipoDeReclamo tipo, String titulo, String descripcion) {
     }
 }

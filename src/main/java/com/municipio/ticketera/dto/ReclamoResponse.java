@@ -12,6 +12,7 @@ import java.util.UUID;
 public record ReclamoResponse(
         UUID id,
         TipoDeReclamo tipo,
+        String titulo,
         String descripcion,
         Estado estado,
         boolean urgente,
@@ -32,6 +33,7 @@ public record ReclamoResponse(
         return new ReclamoResponse(
                 r.getId(),
                 r.getTipo(),
+                r.getTitulo(),
                 r.getDescripcion(),
                 r.getEstado(),
                 r.isUrgente(),

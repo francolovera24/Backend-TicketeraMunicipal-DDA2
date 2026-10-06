@@ -128,7 +128,7 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
 | ProveedorJwt / JwtAuthenticationFilter | config.ProveedorJwt / config.JwtAuthenticationFilter |
 
 ## Dominio
-- Reclamo: id, descripcion, tipo, ubicacion (value object `Ubicacion`: direccion +
+- Reclamo: id, titulo, descripcion, tipo, ubicacion (value object `Ubicacion`: direccion +
   `Coordenadas` opcionales; `Coordenadas` es un record lat/lon siempre valido
   que sabe calcular la distancia a otro punto),
   barrio, ciudadano, estado, fechas, scoreCriticidad, urgente.
@@ -199,7 +199,7 @@ en cache -> publicar `zona.resumen`.
   credenciales) y `LlmClient` real (RestClient, URL/clave/modelo por env:
   LLM_URL, LLM_API_KEY, LLM_MODEL), elegido por perfil o propiedad.
 - Resiliencia: timeout y fallback (si el LLM falla, devolver solo el ranking).
-- Privacidad: al LLM solo tipo, barrio y descripcion; nunca nombre ni contacto.
+- Privacidad: al LLM solo tipo, barrio, titulo y descripcion; nunca nombre ni contacto.
   Paso explicito `SvcIA.anonimizar` (y en DetectorDeDuplicados) con
   `util.Anonimizador`: borra de la descripcion el nombre y el contacto del
   vecino y cualquier email, DNI o telefono. Limitacion conocida: no detecta
@@ -211,7 +211,7 @@ en cache -> publicar `zona.resumen`.
   `ComparadorDeReclamos` (LLM o stub) decide. Duplicado -> estado DUPLICADO +
   `reclamoOriginal`, sin cuadrilla. Si no -> score inicial + reclamo.validado, y
   recien ahi SvcCuadrillas asigna. Si el LLM falla, no es duplicado. Al LLM solo
-  tipo, descripcion y distancia en metros.
+  tipo, titulo, descripcion y distancia en metros.
 - API externa real: `GeoClient` con Nominatim (direccion -> barrio). Respetar su
   politica de uso: User-Agent propio y maximo 1 pedido por segundo.
 
