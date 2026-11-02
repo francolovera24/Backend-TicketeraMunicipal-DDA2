@@ -164,9 +164,10 @@ class ActualizacionResumenTest {
             SvcBarrios barrios = new SvcBarrios(repoBarrio, repo);
             ia = new SvcIA(List.of(new ScoreCableado(), new ScoreBacheo(), new ScoreGenerico()), repo,
                     barrios, cache, new GeneradorDeResumenStub(), mock(DetectorDeDuplicados.class), broker, tx,
-                    new ConfiguracionTicketera("America/Argentina/Buenos_Aires", null, null, null, null));
+                    new ConfiguracionTicketera("America/Argentina/Buenos_Aires", null, null, null, null),
+                    mock(com.municipio.ticketera.repository.ImagenReclamoRepository.class));
             reclamos = new SvcReclamos(repo, mock(CiudadanoRepository.class), barrios, mock(GeoClient.class),
-                    broker, tx, List.of());
+                    broker, tx, List.of(), mock(com.municipio.ticketera.repository.ImagenReclamoRepository.class));
             cuadrillas = new SvcCuadrillas(repoCuadrilla, repo, broker);
             doAnswer(inv -> {
                 Evento evento = inv.getArgument(0);

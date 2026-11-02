@@ -32,8 +32,8 @@ node "Servidor Docker Host (docker-compose, red bridge ticketera-red)" as Docker
     }
 }
 
-cloud "Proveedor de LLM" as NodoLLM {
-    artifact "API Gemini" as artLLM
+node "Host (proceso de IA)" as NodoLLM {
+    artifact "Gemma 4 E4B\nia/servidor.py :8090" as artLLM
 }
 
 cloud "Proveedor de Geolocalizacion" as NodoGeo {
@@ -44,7 +44,7 @@ note bottom of AppContainer
   Un unico despliegue. Para evolucionar a
   microservicios, el modulo de IA se separaria
   en su propio contenedor consumiendo ia.eventos.
-  Secretos (contrasenas, LLM_API_KEY, JWT_SECRET)
+  Secretos (contrasenas, HF_TOKEN, JWT_SECRET)
   solo por variables de entorno desde .env.
   Las requests de gestion llevan un JWT de rol ADMIN.
 end note
@@ -64,6 +64,6 @@ ClienteSoap --> AppContainer : HTTPS 8080\n(SOAP /ws, WSDL /ws/reclamos.wsdl)
 AppContainer --> PgContainer : JDBC 5432
 AppContainer --> MqContainer : AMQP 5672
 AppContainer ..> RedisContainer : reservado\n(la cache hoy es en memoria)
-AppContainer --> NodoLLM : HTTPS (API REST)
+AppContainer --> NodoLLM : HTTP 8090
 AppContainer --> NodoGeo : HTTPS (API REST)
 @enduml

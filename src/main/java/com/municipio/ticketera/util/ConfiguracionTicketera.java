@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * Configuracion propia del backend en un solo lugar (prefijo {@code ticketera}).
  * Los valores vienen de application.yml, que a su vez los toma de variables de
- * entorno (IA_GENERADOR, LLM_API_KEY, GEO_HABILITADO, ...). Los componentes
+ * entorno (IA_GENERADOR, LLM_URL, LLM_MODEL, GEO_HABILITADO, ...). Los componentes
  * reciben este objeto (o una de sus secciones) en vez de usar @Value sueltos.
  */
 @ConfigurationProperties(prefix = "ticketera")
@@ -30,9 +30,10 @@ public record ConfiguracionTicketera(String zonaHoraria, Ia ia, Geo geo, Duplica
     }
 
     /**
-     * @param url   base de la API de Gemini, sin el modelo
+     * @param url    base del servicio local de Gemma (ia/servidor.py), sin la ruta
+     * @param modelo id de Hugging Face que carga ese servicio
      */
-    public record Llm(String url, String modelo, String apiKey, Duration timeoutConexion, Duration timeoutLectura) {
+    public record Llm(String url, String modelo, Duration timeoutConexion, Duration timeoutLectura) {
     }
 
     /**

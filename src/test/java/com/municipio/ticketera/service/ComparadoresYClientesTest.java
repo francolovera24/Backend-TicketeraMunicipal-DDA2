@@ -1,14 +1,17 @@
 package com.municipio.ticketera.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.municipio.ticketera.domain.TipoDeReclamo;
 import com.municipio.ticketera.service.ComparadorDeReclamos.ReclamoParaComparar;
 import com.municipio.ticketera.service.GeneradorDeResumen.ReclamoParaResumen;
+import com.municipio.ticketera.util.ValidacionException;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Nested;
@@ -74,8 +77,9 @@ class ComparadoresYClientesTest {
                     .mapToObj(i -> new ReclamoParaResumen(TipoDeReclamo.BACHEO, "Titulo " + i, "Pozo " + i))
                     .toList();
             String prompt = LlmClient.armarPrompt("Flores", muchos);
-            assertThat(prompt).contains("20. [BACHEO] Titulo 19: Pozo 19")
-                    .doesNotContain("Pozo 20").contains("y 5 reclamos mas");
+            assertThat(prompt).contains("20. [BACHEO] Titulo 19: Pozo 19");
+            assertThat(prompt).doesNotContain("Pozo 20");
+            assertThat(prompt).contains("y 5 reclamos mas");
         }
 
         @Test
@@ -84,8 +88,26 @@ class ComparadoresYClientesTest {
                     new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Pozo nuevo", "Pozo", null),
                     List.of(new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Bache viejo", "Bache", 18),
                             new ReclamoParaComparar(TipoDeReclamo.BACHEO, "Hueco viejo", "Hueco", null)));
-            assertThat(prompt).contains("1. [BACHEO] (a 18 m) Bache viejo: Bache")
-                    .contains("2. [BACHEO] (distancia desconocida, mismo barrio) Hueco viejo: Hueco");
+            assertThat(prompt).contains("1. [BACHEO] (a 18 m) Bache viejo: Bache");
+            assertThat(prompt).contains("2. [BACHEO] (distancia desconocida, mismo barrio) Hueco viejo: Hueco");
+        }
+
+        @Test
+        void laFotoSeMarcaYSeAdjuntaSoloEnLosPrimeros() {
+            ImagenAdjunta foto = new ImagenAdjunta("image/jpeg", new byte[] {1, 2, 3});
+            List<ReclamoParaResumen> reclamos = List.of(
+                    new ReclamoParaResumen(TipoDeReclamo.BACHEO, "Pozo", "Pozo hondo", foto),
+                    new ReclamoParaResumen(TipoDeReclamo.CABLEADO, "Cable", "Cable pelado"));
+            String prompt = LlmClient.armarPrompt("Palermo", reclamos);
+            assertThat(prompt).contains("1. [BACHEO] Pozo: Pozo hondo (con foto)");
+            assertThat(prompt).contains("2. [CABLEADO] Cable: Cable pelado");
+            assertThat(prompt).doesNotContain("Cable pelado (con foto)");
+            List<Map<String, String>> fotos = LlmClient.fotosDelResumen(reclamos);
+            assertThat(fotos).hasSize(2);
+            assertThat(fotos.get(0)).containsEntry("texto", "Foto del reclamo 1.");
+            assertThat(fotos.get(1)).containsEntry("tipo", "imagen");
+            assertThat(fotos.get(1)).containsEntry("datos_base64",
+                    Base64.getEncoder().encodeToString(new byte[] {1, 2, 3}));
         }
 
         @Test
@@ -98,39 +120,58 @@ class ComparadoresYClientesTest {
         }
 
         @Test
-        void extraeElTextoSalteandoElRazonamiento() throws Exception {
-            JsonNode respuesta = json("""
-                    {"candidates":[{"content":{"parts":[
-                      {"text":"pensando...","thought":true},
-                      {"text":"Resumen "},{"text":"final"}]}}]}""");
-            assertThat(LlmClient.extraerTexto(respuesta)).isEqualTo("Resumen final");
+        void extraeElTextoFinal() throws Exception {
+            assertThat(LlmClient.extraerTexto(json("{\"texto\":\"Resumen final\"}"))).isEqualTo("Resumen final");
         }
 
         @Test
         void leeElJsonAunqueNoVengaMarcadoComoTal() {
-            byte[] crudo = """
-                    {"candidates":[{"content":{"parts":[{"text":"Hay dos baches."}]}}]}"""
-                    .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] crudo = "{\"texto\":\"Hay dos baches.\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
             assertThat(LlmClient.extraerTexto(LlmClient.leerJson(crudo))).isEqualTo("Hay dos baches.");
         }
 
         @Test
         void unErrorDelModeloNoSeTomaComoResumen() {
-            byte[] crudo = """
-                    {"error":{"code":503,"message":"alta demanda","status":"UNAVAILABLE"}}"""
+            byte[] crudo = "{\"error\":{\"code\":503,\"message\":\"alta demanda\",\"status\":\"UNAVAILABLE\"}}"
                     .getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            assertThatThrownBy(() -> LlmClient.leerJson(crudo))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("alta demanda");
+            IllegalStateException error = assertThrows(IllegalStateException.class, () -> LlmClient.leerJson(crudo));
+            assertThat(error.getMessage()).contains("alta demanda");
         }
 
         @Test
-        void respuestaVaciaOSinCandidatosEsError() throws Exception {
-            assertThatThrownBy(() -> LlmClient.extraerTexto(json("{\"candidates\":[]}")))
-                    .isInstanceOf(IllegalStateException.class);
-            assertThatThrownBy(() -> LlmClient.extraerTexto(
-                    json("{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"  \"}]}}]}")))
-                    .isInstanceOf(IllegalStateException.class);
+        void respuestaVaciaOSinTextoEsError() throws Exception {
+            IllegalStateException sinTexto = assertThrows(IllegalStateException.class,
+                    () -> LlmClient.extraerTexto(json("{}")));
+            assertThat(sinTexto.getMessage()).contains("sin texto");
+            IllegalStateException vacia = assertThrows(IllegalStateException.class,
+                    () -> LlmClient.extraerTexto(json("{\"texto\":\"" + "  " + "\"}")));
+            assertThat(vacia.getMessage()).contains("vacia");
+        }
+    }
+
+    @Nested
+    class Fotos {
+
+        @Test
+        void aceptaUnJpeg() {
+            byte[] jpeg = new byte[16];
+            jpeg[0] = (byte) 0xFF;
+            jpeg[1] = (byte) 0xD8;
+            jpeg[2] = (byte) 0xFF;
+            ImagenAdjunta imagen = Imagenes.desde(Base64.getEncoder().encodeToString(jpeg), "image/jpeg");
+            assertThat(imagen.mediaType()).isEqualTo("image/jpeg");
+            assertThat(imagen.datos()).containsExactly(jpeg);
+        }
+
+        @Test
+        void rechazaLoQueNoEsUnaFoto() {
+            byte[] gif = new byte[16];
+            gif[0] = 'G';
+            gif[1] = 'I';
+            gif[2] = 'F';
+            ValidacionException error = assertThrows(ValidacionException.class,
+                    () -> Imagenes.desde(Base64.getEncoder().encodeToString(gif), "image/gif"));
+            assertThat(error.getMessage()).contains("JPEG");
         }
     }
 
@@ -139,19 +180,16 @@ class ComparadoresYClientesTest {
 
         @Test
         void tomaElBarrioDeSuburb() throws Exception {
-            JsonNode respuesta = json("""
-                    [{"lat":"-34.5631","lon":"-58.4559",
-                      "address":{"road":"Avenida Cabildo","suburb":"Belgrano","city":"Buenos Aires"}}]""");
-            assertThat(GeoClient.interpretar(respuesta))
-                    .contains(new GeoClient.ResultadoGeo(new com.municipio.ticketera.domain.Coordenadas(-34.5631, -58.4559), "Belgrano"));
+            JsonNode respuesta = json("[{\"lat\":\"-34.5631\",\"lon\":\"-58.4559\","
+                    + "\"address\":{\"road\":\"Avenida Cabildo\",\"suburb\":\"Belgrano\",\"city\":\"Buenos Aires\"}}]");
+            assertThat(GeoClient.interpretar(respuesta)).contains(new GeoClient.ResultadoGeo(
+                    new com.municipio.ticketera.domain.Coordenadas(-34.5631, -58.4559), "Belgrano"));
         }
 
         @Test
         void usaAlternativasSiNoHaySuburb() throws Exception {
-            JsonNode respuesta = json("""
-                    [{"lat":"-31.4","lon":"-64.18","address":{"city_district":"Centro"}}]""");
-            assertThat(GeoClient.interpretar(respuesta)).get()
-                    .extracting(GeoClient.ResultadoGeo::barrio).isEqualTo("Centro");
+            JsonNode respuesta = json("[{\"lat\":\"-31.4\",\"lon\":\"-64.18\",\"address\":{\"city_district\":\"Centro\"}}]");
+            assertThat(GeoClient.interpretar(respuesta).orElseThrow().barrio()).isEqualTo("Centro");
         }
 
         @Test

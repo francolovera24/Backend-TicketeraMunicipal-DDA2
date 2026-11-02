@@ -33,5 +33,11 @@ public record CrearReclamoRequest(
         @DecimalMin("-180") @DecimalMax("180") Double lon,
 
         @Schema(description = "Nombre del barrio", example = "Palermo")
-        @Size(max = 100) String barrio) {
+        @Size(max = 100) String barrio,
+
+        @Schema(description = "Foto del problema en base64, sin el prefijo data:. JPEG, PNG o WebP.")
+        @Size(max = 2_100_000) String imagen,
+
+        @Schema(description = "Tipo de la foto", example = "image/jpeg")
+        @Size(max = 40) String imagenTipo) {
 }

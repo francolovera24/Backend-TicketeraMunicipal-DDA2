@@ -3,6 +3,7 @@ package com.municipio.ticketera.service;
 import com.municipio.ticketera.domain.Barrio;
 import com.municipio.ticketera.domain.Ciudadano;
 import com.municipio.ticketera.domain.Estado;
+import com.municipio.ticketera.domain.ImagenReclamo;
 import com.municipio.ticketera.domain.Reclamo;
 import com.municipio.ticketera.domain.TipoDeReclamo;
 import com.municipio.ticketera.domain.Ubicacion;
@@ -11,6 +12,7 @@ import com.municipio.ticketera.patterns.factory.ReclamoFactory;
 import com.municipio.ticketera.patterns.observer.Evento;
 import com.municipio.ticketera.patterns.observer.TipoEvento;
 import com.municipio.ticketera.repository.CiudadanoRepository;
+import com.municipio.ticketera.repository.ImagenReclamoRepository;
 import com.municipio.ticketera.repository.ReclamoRepository;
 import com.municipio.ticketera.util.Bitacora;
 import com.municipio.ticketera.util.ValidacionException;
@@ -34,6 +36,7 @@ public class SvcReclamos {
     private static final Bitacora log = Bitacora.de(SvcReclamos.class);
 
     private final ReclamoRepository repo;
+    private final ImagenReclamoRepository imagenes;
     private final CiudadanoRepository ciudadanoRepo;
     private final SvcBarrios svcBarrios;
     private final GeoClient geoClient;
@@ -47,8 +50,10 @@ public class SvcReclamos {
                        GeoClient geoClient,
                        Broker broker,
                        TransactionTemplate tx,
-                       List<ReclamoFactory> listaFabricas) {
+                       List<ReclamoFactory> listaFabricas,
+                       ImagenReclamoRepository imagenes) {
         this.repo = repo;
+        this.imagenes = imagenes;
         this.ciudadanoRepo = ciudadanoRepo;
         this.svcBarrios = svcBarrios;
         this.geoClient = geoClient;
@@ -65,6 +70,11 @@ public class SvcReclamos {
      */
     public Reclamo registrarReclamo(UUID ciudadanoId, TipoDeReclamo tipo, String titulo, String descripcion,
                                     Ubicacion ubicacion, String nombreBarrio) {
+        return registrarReclamo(ciudadanoId, tipo, titulo, descripcion, ubicacion, nombreBarrio, null);
+    }
+
+    public Reclamo registrarReclamo(UUID ciudadanoId, TipoDeReclamo tipo, String titulo, String descripcion,
+                                    Ubicacion ubicacion, String nombreBarrio, ImagenAdjunta imagen) {
         Validador.presente(ciudadanoId, "ciudadanoId");
         Validador.presente(tipo, "tipo");
         boolean faltaBarrio = nombreBarrio == null || nombreBarrio.isBlank();
@@ -87,11 +97,12 @@ public class SvcReclamos {
             throw new ValidacionException(
                     "No se pudo determinar el barrio a partir de la direccion; informelo en el campo barrio");
         }
-        return registrar(ciudadanoId, tipo, titulo, descripcion, ubicacionFinal, svcBarrios.resolverBarrio(barrioFinal));
+        return registrar(ciudadanoId, tipo, titulo, descripcion, ubicacionFinal,
+                svcBarrios.resolverBarrio(barrioFinal), imagen);
     }
 
     private Reclamo registrar(UUID ciudadanoId, TipoDeReclamo tipo, String titulo, String descripcion,
-                              Ubicacion ubicacion, Barrio barrio) {
+                              Ubicacion ubicacion, Barrio barrio, ImagenAdjunta imagen) {
         ReclamoFactory fabrica = fabricas.get(tipo);
         if (fabrica == null) {
             throw new ValidacionException("Tipo de reclamo no soportado: " + tipo);
@@ -101,6 +112,10 @@ public class SvcReclamos {
             Ciudadano ciudadano = ciudadanoRepo.findById(ciudadanoId)
                     .orElseThrow(() -> new RecursoNoEncontradoException("Ciudadano", ciudadanoId));
             Reclamo reclamo = repo.save(fabrica.crear(titulo, descripcion, ubicacion, barrio, ciudadano));
+            if (imagen != null) {
+                imagenes.save(new ImagenReclamo(reclamo.getId(), imagen.mediaType(), imagen.datos()));
+                reclamo.marcarConImagen();
+            }
             ciudadano.agregarReclamoAlHistorial(reclamo);
             broker.publicar(Evento.de(TipoEvento.RECLAMO_CREADO, reclamo.getId(), barrio.getNombre()));
             log.info("reclamo.registrado", "reclamoId", reclamo.getId(), "tipo", tipo,
@@ -138,5 +153,10 @@ public class SvcReclamos {
     @Transactional(readOnly = true)
     public Reclamo buscarReclamo(UUID id) {
         return repo.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("Reclamo", id));
+    }
+
+    @Transactional(readOnly = true)
+    public ImagenReclamo buscarImagen(UUID reclamoId) {
+        return imagenes.findById(reclamoId).orElseThrow(() -> new RecursoNoEncontradoException("Imagen", reclamoId));
     }
 }

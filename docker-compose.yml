@@ -1,5 +1,5 @@
 # Credenciales y claves: se leen de .env (copiar .env.example a .env).
-# No hay secretos en el repo: las variables sensibles (contrasenas, LLM_API_KEY)
+# No hay secretos en el repo: las variables sensibles (contrasenas, HF_TOKEN)
 # solo llegan por entorno. Las obligatorias cortan el arranque si faltan (:?).
 services:
   app:
@@ -18,15 +18,17 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:?definir RABBITMQ_USER en .env}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?definir RABBITMQ_PASSWORD en .env}
       IA_GENERADOR: ${IA_GENERADOR:-stub}
-      LLM_URL: ${LLM_URL:-https://generativelanguage.googleapis.com/v1beta}
-      LLM_MODEL: ${LLM_MODEL:-gemini-3.8-flash}
-      LLM_API_KEY: ${LLM_API_KEY:-}
+      # El proceso de Gemma corre en el host (puerto 8090). Docker Desktop lo alcanza asi.
+      LLM_URL: ${LLM_URL:-http://host.docker.internal:8090}
+      LLM_MODEL: ${LLM_MODEL:-google/gemma-4-E4B-it}
       GEO_HABILITADO: ${GEO_HABILITADO:-true}
       GEO_CONTACTO: ${GEO_CONTACTO:-}
       DUPLICADOS_HABILITADO: ${DUPLICADOS_HABILITADO:-true}
       ZONA_HORARIA: ${ZONA_HORARIA:-America/Argentina/Buenos_Aires}
       # Clave de firma de los JWT. El default es SOLO para desarrollo (la app lo avisa en el log).
       JWT_SECRET: ${JWT_SECRET:-dev-solo-desarrollo-cambiar-en-produccion-0123456789}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,6 +76,25 @@ services:
       timeout: 10s
       retries: 10
 
+  # Gemma 4 E4B. Perfil aparte: no se construye con "docker compose up".
+  # En Windows es preferible python ia/servidor.py en el host (usa la GPU).
+  # docker compose --profile ia up gemma
+  gemma:
+    profiles: ["ia"]
+    build: ./ia
+    container_name: ticketera-gemma
+    ports:
+      - "8090:8090"
+    environment:
+      MODEL_ID: ${LLM_MODEL:-google/gemma-4-E4B-it}
+      HF_TOKEN: ${HF_TOKEN:-}
+      PORT: "8090"
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    networks:
+      - ticketera
+    restart: unless-stopped
+
   # Reservado: Cache_Resumenes es en memoria; Redis queda como mejora futura.
   redis:
     image: redis:7-alpine
@@ -98,3 +119,4 @@ networks:
 volumes:
   postgres_data:
   rabbitmq_data:
+  huggingface_cache:

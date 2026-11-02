@@ -234,20 +234,45 @@ criticidad y pide el texto a un `GeneradorDeResumen`:
 
 | `IA_GENERADOR` | Implementacion |
 |---|---|
-| `stub` (por defecto) | `GeneradorDeResumenStub`: plantilla fija, sin credenciales |
-| `llm` | `LlmClient`: Gemini (Google AI Studio), requiere `LLM_API_KEY` |
+| `stub` (por defecto) | `GeneradorDeResumenStub`: plantilla fija, sin modelo |
+| `llm` | `LlmClient`: Gemma 4 E4B local (`google/gemma-4-E4B-it`) |
 
-Para usar Gemini, en `.env` (nunca en el repo):
+El modelo corre en `ia/servidor.py` (Transformers). El backend le pide lo mismo
+que antes: el resumen de zona y si un reclamo es duplicado. No usa la API de
+Gemini ni una API key de Google.
+
+En otra terminal, desde `ticketera/ia` (hace falta aceptar la licencia del
+modelo en Hugging Face y, si la pide, `HF_TOKEN`):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -U -r requirements.txt
+python servidor.py
+```
+
+En `.env` (nunca en el repo). La app en Docker llega al proceso del host por
+`host.docker.internal`; si Spring corre en el host, `LLM_URL=http://localhost:8090`.
+
 ```
 IA_GENERADOR=llm
-LLM_API_KEY=<tu key>
-LLM_MODEL=gemini-3.8-flash
+LLM_URL=http://host.docker.internal:8090
+LLM_MODEL=google/gemma-4-E4B-it
 ```
+
+`GET /salud` responde `listo` cuando el modelo termino de cargar. La primera
+vez descarga los pesos. El razonamiento queda apagado (`enable_thinking=false`)
+para que la respuesta sea directa; el servicio igual usa `parse_response` y
+descarta el pensamiento. Si el pedido trae `imagen_url`, la imagen entra antes
+del texto, como en la ficha del modelo. Los reclamos de esta app no tienen
+foto, asi que resumen y duplicados siguen siendo solo texto.
+
+Opcional, en CPU y sin la GPU del host: `docker compose --profile ia up gemma`.
 - Al modelo solo se envian barrio, tipo, titulo y descripcion, hasta 20 reclamos.
   Antes se anonimizan el titulo y la descripcion (`util.Anonimizador`): se borran
   el nombre y el contacto del vecino y cualquier email, DNI o telefono. No
   detecta nombres de terceros escritos en el texto.
-- Timeouts de 3 s (conexion) y 20 s (lectura). Si el LLM falla o no responde,
+- Timeouts de 5 s (conexion) y 120 s (lectura). Si el LLM falla o no responde,
   se devuelve el ranking con un texto de fallback (`generadoPorIa: false`), que
   se cachea solo 30 s para reintentar pronto. Un resumen generado se cachea 5 min.
 
@@ -296,9 +321,10 @@ El build de Docker (`docker compose up --build`) no corre los tests.
 
 ### Pruebas con APIs externas reales
 
-`NominatimRealIT` y `GeminiRealIT` arrancan la aplicacion con PostgreSQL y
-RabbitMQ de Testcontainers y llaman a las APIs oficiales. No se ejecutan con
-`mvn test`: el sufijo `IT` permite seleccionarlas explicitamente.
+`NominatimRealIT` y `GemmaRealIT` arrancan la aplicacion con PostgreSQL y
+RabbitMQ de Testcontainers. No se ejecutan con `mvn test`: el sufijo `IT`
+permite seleccionarlas explicitamente. Nominatim llama a la API oficial;
+Gemma llama al proceso local.
 
 Nominatim: registrar una direccion publica de CABA sin barrio ni coordenadas,
 comprobar que ambos se completan y verificar que quedan persistidos:
@@ -307,29 +333,29 @@ comprobar que ambos se completan y verificar que quedan persistidos:
 mvn test -Dtest=NominatimRealIT
 ```
 
-Gemini: definir `LLM_API_KEY` en el entorno del proceso; `LLM_MODEL` es opcional
-y conserva el valor de `application.yml` si no se informa. La prueba activa
-`llm`, crea dos reclamos de distinto tipo, espera su validacion y consulta el
-resumen. Exige el cliente real, texto no vacio, ausencia de fallback y el
-ranking esperado. Tambien comprueba que dos reportes del mismo problema se
-vinculan como duplicados:
+Gemma: con `ia/servidor.py` ya en `http://localhost:8090` y el modelo cargado.
+La prueba activa `llm`, crea dos reclamos de distinto tipo, espera su
+validacion y consulta el resumen. Exige el cliente real, texto no vacio,
+ausencia de fallback y el ranking esperado. Tambien comprueba que dos reportes
+del mismo problema se vinculan como duplicados:
 
 ```bash
-mvn test -Dtest=GeminiRealIT
+mvn test -Dtest=GemmaRealIT
 ```
 
-Maven no carga `.env` automaticamente; para estas pruebas la clave debe estar
-exportada como variable de entorno. Docker Compose si carga `.env`.
-Las credenciales nunca se incluyen en los comandos documentados ni en Git.
+Maven no carga `.env` automaticamente. La prueba fija la URL del servicio en
+`http://localhost:8090`. Docker Compose si carga `.env`.
+`HF_TOKEN` (si hace falta para bajar el modelo) se define solo en el proceso
+de Python, nunca en los comandos documentados ni en Git.
 
 Cada prueba exitosa guarda la solicitud o los datos de entrada y la respuesta
-en `target/evidencias/nominatim.json`, `target/evidencias/gemini.json` o
-`target/evidencias/gemini-duplicados.json`.
+en `target/evidencias/nominatim.json`, `target/evidencias/gemma.json` o
+`target/evidencias/gemma-duplicados.json`.
 Revisar el texto generado para comprobar que describe los problemas y respeta
 su prioridad: la prueba automatica no evalua toda su exactitud semantica.
 Los archivos de evidencia son locales y `target/` esta ignorado por Git.
-Estas pruebas requieren Internet y disponibilidad o cuota del proveedor;
-Gemini puede consumir cuota facturable segun la configuracion del proyecto.
+Nominatim requiere Internet. Gemma requiere el proceso local y, la primera
+vez, descarga del modelo.
 Ver la [evidencia de ejecucion](docs/evidencias/apis-reales.md).
 
 ## Errores
@@ -339,7 +365,7 @@ concurrente), 500 error inesperado.
 
 ## Estado
 Etapas 1 a 7 completas: infraestructura, dominio, patrones, servicios, API
-REST, mensajeria, IA con Gemini (resumen y deteccion de duplicados),
+REST, mensajeria, IA con Gemma 4 E4B local (resumen y deteccion de duplicados),
 geolocalizacion y tests.
 
 Mejora futura: patron Outbox, para no perder un evento si RabbitMQ no esta

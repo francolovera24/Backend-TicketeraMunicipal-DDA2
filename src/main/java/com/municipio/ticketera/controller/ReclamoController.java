@@ -8,6 +8,8 @@ import com.municipio.ticketera.dto.AsignarCuadrillaRequest;
 import com.municipio.ticketera.dto.CambioEstadoRequest;
 import com.municipio.ticketera.dto.CrearReclamoRequest;
 import com.municipio.ticketera.dto.ReclamoResponse;
+import com.municipio.ticketera.domain.ImagenReclamo;
+import com.municipio.ticketera.service.Imagenes;
 import com.municipio.ticketera.service.SvcCuadrillas;
 import com.municipio.ticketera.service.SvcReclamos;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,8 +19,11 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -56,7 +61,8 @@ public class ReclamoController {
     @ApiResponse(responseCode = "404", description = "Ciudadano inexistente")
     public ResponseEntity<ReclamoResponse> altaReclamo(@Valid @RequestBody CrearReclamoRequest dto) {
         Reclamo reclamo = svcReclamos.registrarReclamo(dto.ciudadanoId(), dto.tipo(), dto.titulo(), dto.descripcion(),
-                new Ubicacion(dto.direccion().trim(), dto.lat(), dto.lon()), dto.barrio());
+                new Ubicacion(dto.direccion().trim(), dto.lat(), dto.lon()), dto.barrio(),
+                Imagenes.desde(dto.imagen(), dto.imagenTipo()));
         URI ubicacion = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(reclamo.getId()).toUri();
         return ResponseEntity.created(ubicacion).body(ReclamoResponse.desde(reclamo));
@@ -72,6 +78,17 @@ public class ReclamoController {
             @Parameter(description = "Nombre del barrio (sin distinguir mayusculas ni acentos)", example = "Palermo")
             @RequestParam(required = false) String barrio) {
         return svcReclamos.consultarReclamos(barrio).stream().map(ReclamoResponse::desde).toList();
+    }
+
+    @GetMapping("/{id}/imagen")
+    @Operation(summary = "Foto del problema, si el vecino adjunto una")
+    @ApiResponse(responseCode = "404", description = "El reclamo no tiene foto")
+    public ResponseEntity<byte[]> imagen(@PathVariable UUID id) {
+        ImagenReclamo imagen = svcReclamos.buscarImagen(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(imagen.getMediaType()))
+                .cacheControl(CacheControl.maxAge(Duration.ofHours(12)).cachePublic())
+                .body(imagen.getContenido());
     }
 
     @GetMapping("/{id}")

@@ -65,7 +65,8 @@ class AsignacionCuadrillasTest {
                 .thenAnswer(inv -> cuadrilla.isDisponible() ? Optional.of(cuadrilla) : Optional.empty());
         svcCuadrillas = new SvcCuadrillas(cuadrillas, reclamos, broker);
         svcReclamos = new SvcReclamos(reclamos, mock(CiudadanoRepository.class), mock(SvcBarrios.class),
-                mock(GeoClient.class), broker, mock(TransactionTemplate.class), List.of());
+                mock(GeoClient.class), broker, mock(TransactionTemplate.class), List.of(),
+                mock(com.municipio.ticketera.repository.ImagenReclamoRepository.class));
         // Contrato MVC sin filtros de seguridad; sus pruebas existentes verifican roles y JWT.
         mvc = MockMvcBuilders.standaloneSetup(new ReclamoController(svcReclamos, svcCuadrillas))
                 .setControllerAdvice(new ManejadorDeErrores()).build();
