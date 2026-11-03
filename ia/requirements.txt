@@ -4,6 +4,7 @@ transformers
 torch
 torchvision
 accelerate
+bitsandbytes
 fastapi
 uvicorn
 pillow

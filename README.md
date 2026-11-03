@@ -251,6 +251,12 @@ pip install -U -r requirements.txt
 python servidor.py
 ```
 
+Con GPU NVIDIA hace falta el `torch` con CUDA (`pip install torch torchvision
+--index-url https://download.pytorch.org/whl/cu130`). El modelo pesa ~16 GiB en bf16:
+si la GPU es chica (menos de 20 GiB), el servidor carga las capas en 4 bits y deja
+la tabla de embeddings por capa en RAM (~5 GiB). Entra en 6 GiB de GPU y 16 GiB de
+RAM. `GEMMA_CUANTIZAR=0` lo desactiva.
+
 En `.env` (nunca en el repo). La app en Docker llega al proceso del host por
 `host.docker.internal`; si Spring corre en el host, `LLM_URL=http://localhost:8090`.
 

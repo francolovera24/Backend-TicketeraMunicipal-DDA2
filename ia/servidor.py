@@ -58,6 +58,69 @@ class Pedido(BaseModel):
     partes: list[Parte] | None = None
 
 
+# Tabla de embeddings por capa de Gemma 4 E4B: ~5 GiB que solo se consulta por indice.
+_TABLA_POR_CAPA = "model.language_model.embed_tokens_per_layer"
+_SIN_CUANTIZAR = [
+    "embed_tokens", "embed_tokens_per_layer", "lm_head",
+    "vision_tower", "audio_tower", "embed_vision", "embed_audio",
+]
+
+
+def _opciones_de_carga() -> dict:
+    """El modelo en bf16 pesa ~16 GiB: no entra en una GPU de 6 GiB y desbordar a disco
+    termina en 'meta tensors' o en un cierre del proceso. Con GPU chica se cargan las capas en
+    4 bits (~2 GiB) y solo la tabla por capa queda en RAM. GEMMA_CUANTIZAR=0 lo desactiva."""
+    import torch
+
+    opciones = {"dtype": os.environ.get("GEMMA_DTYPE", "auto"), "device_map": "auto"}
+    if not torch.cuda.is_available():
+        log.warning("torch sin CUDA: el modelo corre en CPU")
+        return opciones
+    memoria_gib = torch.cuda.get_device_properties(0).total_memory / 2**30
+    if os.environ.get("GEMMA_CUANTIZAR", "1") == "0" or memoria_gib >= 20:
+        return opciones
+    from transformers import BitsAndBytesConfig
+
+    log.info("GPU de %.1f GiB: capas en 4 bits, tabla por capa en RAM", memoria_gib)
+    opciones["dtype"] = torch.bfloat16
+    opciones["quantization_config"] = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        llm_int8_skip_modules=_SIN_CUANTIZAR,
+        llm_int8_enable_fp32_cpu_offload=True,
+    )
+    opciones["device_map"] = {"": 0, _TABLA_POR_CAPA: "cpu"}
+    return opciones
+
+
+def _tabla_por_capa_en_cpu(model) -> None:
+    """accelerate copia a la GPU toda la tabla (5 GiB) en cada paso: no entra. Se le saca el
+    hook, queda en RAM y solo viajan a la GPU los vectores de los tokens consultados."""
+    import torch
+    from accelerate.hooks import remove_hook_from_module
+
+    modulo = model.get_submodule(_TABLA_POR_CAPA)
+    hook = getattr(modulo, "_hf_hook", None)
+    if hook is None:
+        return
+    mapas = [h.weights_map for h in getattr(hook, "hooks", [hook]) if getattr(h, "weights_map", None) is not None]
+    if not mapas:
+        return
+    peso = mapas[0]["weight"]
+    remove_hook_from_module(modulo, recurse=True)
+    modulo.weight = torch.nn.Parameter(peso.to("cpu"), requires_grad=False)
+    modulo.to("cpu")  # tambien el buffer embed_scale, que quedo en la GPU
+    destino = next(model.lm_head.parameters()).device
+    original = modulo.forward
+
+    def en_cpu(input_ids, *args, **kwargs):
+        return original(input_ids.to("cpu"), *args, **kwargs).to(destino)
+
+    modulo.forward = en_cpu
+    log.info("tabla por capa en RAM (%.1f GiB), consulta en CPU", peso.numel() * peso.element_size() / 2**30)
+
+
 def cargar() -> None:
     """Carga el modelo una vez, con el mismo codigo de la ficha de Hugging Face."""
     global _processor, _model, _error_carga, _listo
@@ -71,11 +134,10 @@ def cargar() -> None:
 
         log.info("cargando modelo %s", MODEL_ID)
         processor = AutoProcessor.from_pretrained(MODEL_ID)
-        model = AutoModelForMultimodalLM.from_pretrained(
-            MODEL_ID,
-            dtype=os.environ.get("GEMMA_DTYPE", "auto"),
-            device_map="auto",
-        )
+        opciones = _opciones_de_carga()
+        model = AutoModelForMultimodalLM.from_pretrained(MODEL_ID, **opciones)
+        if isinstance(opciones.get("device_map"), dict):
+            _tabla_por_capa_en_cpu(model)
         model.eval()
         _processor = processor
         _model = model
