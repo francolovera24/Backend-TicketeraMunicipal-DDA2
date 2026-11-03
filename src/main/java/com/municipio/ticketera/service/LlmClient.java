@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -84,19 +85,27 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
     private static final long PAUSA_REINTENTO_MS = 1_000;
 
     private final RestClient http;
+    /** Mas paciencia que el resumen: corre en segundo plano y puede esperar turno detras de otros pedidos. */
+    private final RestClient httpDuplicados;
     private final String modelo;
 
     public LlmClient(RestClient.Builder builder, ConfiguracionTicketera configuracion) {
         ConfiguracionTicketera.Llm config = configuracion.ia().llm();
-        SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
-        fabrica.setConnectTimeout(config.timeoutConexion());
-        fabrica.setReadTimeout(config.timeoutLectura());
-        this.http = builder
-                .requestFactory(fabrica)
-                .baseUrl(sinBarraFinal(config.url()))
-                .build();
+        String base = sinBarraFinal(config.url());
+        this.http = clienteCon(builder.clone(), base, config.timeoutConexion(), config.timeoutLectura());
+        Duration lecturaDuplicados = config.timeoutLecturaDuplicados() != null
+                ? config.timeoutLecturaDuplicados()
+                : config.timeoutLectura();
+        this.httpDuplicados = clienteCon(builder.clone(), base, config.timeoutConexion(), lecturaDuplicados);
         this.modelo = config.modelo();
         log.info("ia.generador_configurado", "tipo", "gemma", "modelo", modelo, "url", config.url());
+    }
+
+    private static RestClient clienteCon(RestClient.Builder builder, String base, Duration conexion, Duration lectura) {
+        SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
+        fabrica.setConnectTimeout(conexion);
+        fabrica.setReadTimeout(lectura);
+        return builder.requestFactory(fabrica).baseUrl(base).build();
     }
 
     @Override
@@ -106,7 +115,7 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
         }
         long inicio = System.currentTimeMillis();
         String prompt = armarPrompt(barrio, reclamosOrdenados);
-        String texto = generar(INSTRUCCIONES, prompt, 0.3, 1024, fotosDelResumen(reclamosOrdenados));
+        String texto = generar(http, INSTRUCCIONES, prompt, 0.3, 1024, fotosDelResumen(reclamosOrdenados));
         log.info("ia.resumen_generado", "barrio", barrio, "modelo", modelo, "ms", System.currentTimeMillis() - inicio);
         return texto;
     }
@@ -118,7 +127,8 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
         }
         long inicio = System.currentTimeMillis();
         String prompt = armarPromptDuplicados(nuevo, candidatos);
-        String respuesta = generar(INSTRUCCIONES_DUPLICADOS, prompt, 0.0, 256, fotosDelDuplicado(nuevo, candidatos));
+        String respuesta = generar(httpDuplicados, INSTRUCCIONES_DUPLICADOS, prompt, 0.0, 256,
+                fotosDelDuplicado(nuevo, candidatos));
         OptionalInt indice = interpretarDuplicado(respuesta, candidatos.size());
         log.info("ia.duplicados_comparados", "modelo", modelo, "ms", System.currentTimeMillis() - inicio,
                 "respuesta", respuesta);
@@ -152,12 +162,12 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
         return elegido >= 1 && elegido <= cantidad ? OptionalInt.of(elegido - 1) : OptionalInt.empty();
     }
 
-    private String generar(String instrucciones, String prompt, double temperatura, int maxTokens,
+    private String generar(RestClient cliente, String instrucciones, String prompt, double temperatura, int maxTokens,
                             List<Map<String, String>> fotos) {
         RestClientResponseException ultimo = null;
         for (int intento = 1; intento <= REINTENTOS; intento++) {
             try {
-                return extraerTexto(pedir(instrucciones, prompt, temperatura, maxTokens, fotos));
+                return extraerTexto(pedir(cliente, instrucciones, prompt, temperatura, maxTokens, fotos));
             } catch (RestClientResponseException e) {
                 ultimo = e;
                 if (intento == REINTENTOS || !reintentable(e.getStatusCode().value())) {
@@ -174,9 +184,9 @@ public class LlmClient implements GeneradorDeResumen, ComparadorDeReclamos {
      * Lee el cuerpo crudo y lo parsea con Jackson. Un 200 trae {"texto":"..."}.
      * 503 (modelo cargando) y 429 se reintentan una vez.
      */
-    private JsonNode pedir(String instrucciones, String prompt, double temperatura, int maxTokens,
+    private JsonNode pedir(RestClient cliente, String instrucciones, String prompt, double temperatura, int maxTokens,
                            List<Map<String, String>> fotos) {
-        byte[] crudo = http.post()
+        byte[] crudo = cliente.post()
                 .uri("/generar")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(cuerpo(instrucciones, prompt, temperatura, maxTokens, fotos))

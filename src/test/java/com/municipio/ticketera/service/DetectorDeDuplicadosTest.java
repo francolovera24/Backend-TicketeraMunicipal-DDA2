@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -105,6 +106,20 @@ class DetectorDeDuplicadosTest {
         when(comparador.buscarMismoProblema(any(), anyList())).thenThrow(new IllegalStateException("503"));
 
         assertThat(detector.buscarOriginal(nuevo)).isEmpty();
+        verify(comparador, times(DetectorDeDuplicados.INTENTOS)).buscarMismoProblema(any(), anyList());
+    }
+
+    @Test
+    void siElComparadorFallaUnaVezSeReintentaYSeEncuentraElOriginal() {
+        Reclamo nuevo = bache("Pozo", AQUI, 0);
+        Reclamo cercano = bache("Pozo", A_20_METROS, 5);
+        candidatos(nuevo, cercano);
+        when(comparador.buscarMismoProblema(any(), anyList()))
+                .thenThrow(new IllegalStateException("Read timed out"))
+                .thenReturn(OptionalInt.of(0));
+
+        assertThat(detector.buscarOriginal(nuevo)).contains(cercano);
+        verify(comparador, times(2)).buscarMismoProblema(any(), anyList());
     }
 
     @Test

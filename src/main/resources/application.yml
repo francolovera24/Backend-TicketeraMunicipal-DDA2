@@ -80,6 +80,8 @@ ticketera:
       timeout-conexion: 5s
       # La primera generacion en CPU puede tardar; en GPU suele ser mucho menos.
       timeout-lectura: 120s
+      # Los duplicados se comparan en segundo plano, asi que pueden esperar turno detras de un resumen.
+      timeout-lectura-duplicados: 300s
   duplicados:
     habilitado: ${DUPLICADOS_HABILITADO:true}
     radio-metros: 150

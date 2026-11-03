@@ -32,8 +32,11 @@ public record ConfiguracionTicketera(String zonaHoraria, Ia ia, Geo geo, Duplica
     /**
      * @param url    base del servicio local de Gemma (ia/servidor.py), sin la ruta
      * @param modelo id de Hugging Face que carga ese servicio
+     * @param timeoutLecturaDuplicados espera maxima de la comparacion de duplicados, que corre en segundo plano
+     *                                 y puede quedar en cola detras de otros pedidos (si falta, usa timeoutLectura)
      */
-    public record Llm(String url, String modelo, Duration timeoutConexion, Duration timeoutLectura) {
+    public record Llm(String url, String modelo, Duration timeoutConexion, Duration timeoutLectura,
+                      Duration timeoutLecturaDuplicados) {
     }
 
     /**

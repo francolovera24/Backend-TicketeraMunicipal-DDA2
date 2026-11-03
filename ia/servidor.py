@@ -264,6 +264,9 @@ def contenido_de(partes: list[Parte], temporales: list[str]) -> list:
         elif parte.tipo == "imagen":
             crudo = base64.b64decode(parte.datos_base64 or "")
             imagen = Image.open(io.BytesIO(crudo)).convert("RGB")
+            # Menos pixeles, menos tokens de imagen: cada foto cuesta segundos en una GPU chica.
+            lado = int(os.environ.get("GEMMA_IMAGEN_MAX", "768"))
+            imagen.thumbnail((lado, lado))
             archivo = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
             imagen.save(archivo, format="JPEG")
             archivo.close()

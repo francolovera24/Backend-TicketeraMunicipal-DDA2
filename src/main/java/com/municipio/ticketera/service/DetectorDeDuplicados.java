@@ -8,6 +8,7 @@ import com.municipio.ticketera.service.ComparadorDeReclamos.ReclamoParaComparar;
 import com.municipio.ticketera.util.Anonimizador;
 import com.municipio.ticketera.util.Bitacora;
 import com.municipio.ticketera.util.ConfiguracionTicketera;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -24,36 +25,45 @@ import org.springframework.stereotype.Component;
  *   <li>Solo si hay candidatos, el ComparadorDeReclamos (LLM o stub) decide si
  *   alguno describe el mismo problema.</li>
  * </ol>
- * Si el comparador falla, el reclamo se considera no duplicado: se prefiere
- * atender dos veces un problema a dejar uno sin atender.
+ * Si el comparador falla se vuelve a intentar (el modelo puede estar atendiendo otro pedido);
+ * si sigue fallando, el reclamo se considera no duplicado: se prefiere atender dos veces
+ * un problema a dejar uno sin atender.
  */
 @Component
 public class DetectorDeDuplicados {
 
     private static final Bitacora log = Bitacora.de(DetectorDeDuplicados.class);
 
+    /** Intentos de comparacion por reclamo antes de darlo por no duplicado. */
+    static final int INTENTOS = 3;
+
+    private static final Duration PAUSA_ENTRE_INTENTOS = Duration.ofSeconds(5);
+
     private final ReclamoRepository repo;
     private final ComparadorDeReclamos comparador;
     private final ConfiguracionTicketera.Duplicados config;
     private final ImagenReclamoRepository imagenes;
+    private final Duration pausaEntreIntentos;
 
     @Autowired
     public DetectorDeDuplicados(ReclamoRepository repo, ComparadorDeReclamos comparador,
                                 ConfiguracionTicketera configuracion, ImagenReclamoRepository imagenes) {
-        this(repo, comparador, configuracion.duplicados(), imagenes);
+        this(repo, comparador, configuracion.duplicados(), imagenes, PAUSA_ENTRE_INTENTOS);
     }
 
     DetectorDeDuplicados(ReclamoRepository repo, ComparadorDeReclamos comparador,
                          ConfiguracionTicketera.Duplicados config) {
-        this(repo, comparador, config, null);
+        this(repo, comparador, config, null, Duration.ZERO);
     }
 
     private DetectorDeDuplicados(ReclamoRepository repo, ComparadorDeReclamos comparador,
-                                 ConfiguracionTicketera.Duplicados config, ImagenReclamoRepository imagenes) {
+                                 ConfiguracionTicketera.Duplicados config, ImagenReclamoRepository imagenes,
+                                 Duration pausaEntreIntentos) {
         this.repo = repo;
         this.comparador = comparador;
         this.config = config;
         this.imagenes = imagenes;
+        this.pausaEntreIntentos = pausaEntreIntentos;
     }
 
     /** El reclamo original del que este es duplicado, si lo hay. */
@@ -65,19 +75,38 @@ public class DetectorDeDuplicados {
         if (candidatos.isEmpty()) {
             return Optional.empty();
         }
+        ReclamoParaComparar nuevo = new ReclamoParaComparar(reclamo.getTipo(), tituloAnonimo(reclamo),
+                descripcionAnonima(reclamo), null, foto(reclamo));
+        List<ReclamoParaComparar> existentes = candidatos.stream().map(otro -> paraComparar(reclamo, otro)).toList();
+        for (int intento = 1; intento <= INTENTOS; intento++) {
+            try {
+                OptionalInt indice = comparador.buscarMismoProblema(nuevo, existentes);
+                log.info("duplicados.comparacion", "reclamoId", reclamo.getId(), "candidatos", candidatos.size(),
+                        "coincidencia", indice.isPresent() ? "si" : "no", "intento", intento);
+                return indice.isPresent() && indice.getAsInt() < candidatos.size()
+                        ? Optional.of(candidatos.get(indice.getAsInt()))
+                        : Optional.empty();
+            } catch (RuntimeException e) {
+                log.aviso("duplicados.comparacion_fallida", "reclamoId", reclamo.getId(), "intento", intento,
+                        "causa", e.getMessage());
+                if (intento < INTENTOS) {
+                    esperar();
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Si el modelo esta ocupado o se cae un momento, se vuelve a preguntar antes de rendirse. */
+    private void esperar() {
+        if (pausaEntreIntentos.isZero()) {
+            return;
+        }
         try {
-            OptionalInt indice = comparador.buscarMismoProblema(
-                    new ReclamoParaComparar(reclamo.getTipo(), tituloAnonimo(reclamo), descripcionAnonima(reclamo),
-                            null, foto(reclamo)),
-                    candidatos.stream().map(otro -> paraComparar(reclamo, otro)).toList());
-            log.info("duplicados.comparacion", "reclamoId", reclamo.getId(), "candidatos", candidatos.size(),
-                    "coincidencia", indice.isPresent() ? "si" : "no");
-            return indice.isPresent() && indice.getAsInt() < candidatos.size()
-                    ? Optional.of(candidatos.get(indice.getAsInt()))
-                    : Optional.empty();
-        } catch (RuntimeException e) {
-            log.aviso("duplicados.comparacion_fallida", "reclamoId", reclamo.getId(), "causa", e.getMessage());
-            return Optional.empty();
+            Thread.sleep(pausaEntreIntentos.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Comparacion de duplicados interrumpida", e);
         }
     }
 
