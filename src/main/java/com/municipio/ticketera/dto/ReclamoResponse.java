@@ -23,7 +23,8 @@ public record ReclamoResponse(
         UUID cuadrillaId,
         UUID reclamoOriginalId,
         Instant fechaCreacion,
-        Instant fechaActualizacion) {
+        Instant fechaActualizacion,
+        boolean tieneImagen) {
 
     public record UbicacionResponse(String direccion, Double lat, Double lon) {
     }
@@ -45,6 +46,7 @@ public record ReclamoResponse(
                 r.getCuadrilla() != null ? r.getCuadrilla().getId() : null,
                 r.getReclamoOriginal() != null ? r.getReclamoOriginal().getId() : null,
                 r.getFechaCreacion(),
-                r.getFechaActualizacion());
+                r.getFechaActualizacion(),
+                r.isTieneImagen());
     }
 }

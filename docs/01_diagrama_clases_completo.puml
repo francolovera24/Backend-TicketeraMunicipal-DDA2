@@ -273,7 +273,7 @@ package "Servicios Externos" {
     class API_Geo <<Nominatim>> {
         +geocodificar(direccion) : Coordenadas
     }
-    class API_LLM <<Gemini>> {
+    class API_LLM <<Gemma4>> {
         +generarTexto(prompt) : String
     }
 }

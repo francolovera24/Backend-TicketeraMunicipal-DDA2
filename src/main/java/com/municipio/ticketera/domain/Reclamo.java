@@ -81,6 +81,9 @@ public class Reclamo {
     @Column(nullable = false)
     private boolean urgente;
 
+    @Column(name = "tiene_imagen", nullable = false)
+    private boolean tieneImagen;
+
     @Version
     private long version;
 
@@ -131,6 +134,10 @@ public class Reclamo {
 
     public void marcarUrgente() {
         this.urgente = true;
+    }
+
+    public void marcarConImagen() {
+        this.tieneImagen = true;
     }
 
     /** Asigna la cuadrilla y pasa el reclamo a ASIGNADO. */
@@ -205,5 +212,9 @@ public class Reclamo {
 
     public boolean isUrgente() {
         return urgente;
+    }
+
+    public boolean isTieneImagen() {
+        return tieneImagen;
     }
 }

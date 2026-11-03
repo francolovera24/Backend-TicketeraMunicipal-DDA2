@@ -20,7 +20,16 @@ latitud ni longitud. El alta devolvio HTTP 201 y completo:
 La consulta posterior del reclamo devolvio el mismo barrio y las mismas
 coordenadas. La prueba `NominatimRealIT` paso sin modificar `GeoClient`.
 
-## Gemini
+## Gemma 4 E4B
+
+El componente de IA ya no llama a la API de Gemini. El resumen de zona y la
+deteccion de duplicados los hace `google/gemma-4-E4B-it` en local
+(`ia/servidor.py`, puerto 8090). La prueba externa es `GemmaRealIT`.
+
+La seccion siguiente es la evidencia de la corrida anterior, cuando el modelo
+era Gemini. No corresponde al comportamiento actual.
+
+## Gemini (corrida anterior)
 
 El modelo predeterminado anterior, `gemini-2.5-flash`, devolvio HTTP 404:
 Google informo que no esta disponible para usuarios nuevos. La aplicacion
@@ -55,14 +64,18 @@ el segundo quedo en `DUPLICADO`, vinculado al primer reclamo y sin cuadrilla.
 
 ```bash
 mvn test
-mvn test -Dtest=NominatimRealIT,GeminiRealIT
+mvn test -Dtest=NominatimRealIT
+mvn test -Dtest=GemmaRealIT
 ```
 
-La suite habitual no consulta estas APIs. Las pruebas externas se seleccionan
-explicitamente y requieren Internet, Docker y `LLM_API_KEY` en el entorno.
+La suite habitual no consulta estos servicios. Las pruebas externas se
+seleccionan explicitamente. Nominatim requiere Internet. `GemmaRealIT` requiere
+Docker (Postgres y RabbitMQ) y `ia/servidor.py` en `http://localhost:8090`.
 Los detalles de configuracion estan en el README. Cada prueba exitosa guarda
 los datos de entrada y la respuesta en `target/evidencias/`, sin headers ni
 claves. Los JSON son locales y no se incluyen en Git.
+
+Los numeros de abajo son de la corrida con Gemini (octubre 2026), no de Gemma.
 
 La suite habitual completo 200 pruebas sin fallos, errores ni omisiones.
 Las tres pruebas externas tambien pasaron sin fallos ni omisiones. La disponibilidad

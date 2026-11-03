@@ -2,6 +2,7 @@ package com.municipio.ticketera.service;
 
 import com.municipio.ticketera.domain.Barrio;
 import com.municipio.ticketera.domain.Estado;
+import com.municipio.ticketera.domain.ImagenReclamo;
 import com.municipio.ticketera.domain.Reclamo;
 import com.municipio.ticketera.domain.ResumenDeZona;
 import com.municipio.ticketera.domain.ResumenDeZona.ItemRanking;
@@ -11,6 +12,7 @@ import com.municipio.ticketera.patterns.observer.Evento;
 import com.municipio.ticketera.patterns.observer.Observador;
 import com.municipio.ticketera.patterns.observer.TipoEvento;
 import com.municipio.ticketera.patterns.strategy.CriticidadStrategy;
+import com.municipio.ticketera.repository.ImagenReclamoRepository;
 import com.municipio.ticketera.repository.ReclamoRepository;
 import com.municipio.ticketera.service.GeneradorDeResumen.ReclamoParaResumen;
 import com.municipio.ticketera.util.Anonimizador;
@@ -24,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -50,6 +53,7 @@ public class SvcIA implements Observador {
 
     private final List<CriticidadStrategy> estrategias;
     private final ReclamoRepository repoReclamo;
+    private final ImagenReclamoRepository imagenes;
     private final SvcBarrios svcBarrios;
     private final CacheResumenes cache;
     private final GeneradorDeResumen generador;
@@ -67,11 +71,13 @@ public class SvcIA implements Observador {
                  DetectorDeDuplicados detector,
                  Broker broker,
                  TransactionTemplate tx,
-                 ConfiguracionTicketera configuracion) {
+                 ConfiguracionTicketera configuracion,
+                 ImagenReclamoRepository imagenes) {
         this.zonaHoraria = configuracion.zona();
         this.detector = detector;
         this.estrategias = List.copyOf(estrategias);
         this.repoReclamo = repoReclamo;
+        this.imagenes = imagenes;
         this.svcBarrios = svcBarrios;
         this.cache = cache;
         this.generador = generador;
@@ -215,11 +221,15 @@ public class SvcIA implements Observador {
      * contacto del vecino que reclamo, y emails, DNI y telefonos que aparezcan.
      */
     static ReclamoParaResumen anonimizar(Reclamo reclamo) {
+        return anonimizar(reclamo, null);
+    }
+
+    static ReclamoParaResumen anonimizar(Reclamo reclamo, ImagenAdjunta imagen) {
         String titulo = Anonimizador.anonimizar(reclamo.getTitulo(),
                 reclamo.getCiudadano().getNombre(), reclamo.getCiudadano().getContacto());
         String descripcion = Anonimizador.anonimizar(reclamo.getDescripcion(),
                 reclamo.getCiudadano().getNombre(), reclamo.getCiudadano().getContacto());
-        return new ReclamoParaResumen(reclamo.getTipo(), titulo, descripcion);
+        return new ReclamoParaResumen(reclamo.getTipo(), titulo, descripcion, imagen);
     }
 
     /**
@@ -231,9 +241,12 @@ public class SvcIA implements Observador {
         Map<TipoDeReclamo, Long> porTipo = activos.stream()
                 .collect(Collectors.groupingBy(Reclamo::getTipo, Collectors.counting()));
 
-        return activos.stream()
+        List<Reclamo> elegidos = activos.stream()
                 .filter(r -> tipo == null || r.getTipo() == tipo)
                 .filter(r -> desde == null || !r.getFechaCreacion().isBefore(desde))
+                .toList();
+        Map<UUID, ImagenAdjunta> fotos = cargarFotos(elegidos);
+        return elegidos.stream()
                 .map(r -> {
                     // Similares = otros reclamos activos del mismo tipo en la zona.
                     long similares = porTipo.get(r.getTipo()) - 1;
@@ -242,12 +255,22 @@ public class SvcIA implements Observador {
                     ItemRanking item = new ItemRanking(r.getId(), r.getTipo(), r.getTitulo(), r.getDescripcion(),
                             r.getUbicacion().getDireccion(), r.getEstado(), r.isUrgente(),
                             r.calcularAntiguedad(), score);
-                    return new Fila(item, anonimizar(r));
+                    return new Fila(item, anonimizar(r, fotos.get(r.getId())));
                 })
                 .sorted(Comparator.comparing(Fila::item, Comparator.comparingInt(ItemRanking::score).reversed()
                         .thenComparing(ItemRanking::urgente, Comparator.reverseOrder())
                         .thenComparing(ItemRanking::antiguedadHoras, Comparator.reverseOrder())))
                 .toList();
+    }
+
+    private Map<UUID, ImagenAdjunta> cargarFotos(List<Reclamo> reclamos) {
+        List<UUID> ids = reclamos.stream().filter(Reclamo::isTieneImagen).map(Reclamo::getId).toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return imagenes.findByReclamoIdIn(ids).stream()
+                .collect(Collectors.toMap(ImagenReclamo::getReclamoId,
+                        img -> new ImagenAdjunta(img.getMediaType(), img.getContenido())));
     }
 
     private CriticidadStrategy estrategiaPara(TipoDeReclamo tipo) {

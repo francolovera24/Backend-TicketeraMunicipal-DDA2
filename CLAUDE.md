@@ -195,9 +195,10 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
 Flujo de GET /resumen-zona: cache (TTL 5 min) -> si no hay, leer reclamos activos
 -> score por Strategy -> ordenar -> texto via puerto `GeneradorDeResumen` -> guardar
 en cache -> publicar `zona.resumen`.
-- `GeneradorDeResumen` (interfaz): `GeneradorDeResumenStub` (por defecto, sin
-  credenciales) y `LlmClient` real (RestClient, URL/clave/modelo por env:
-  LLM_URL, LLM_API_KEY, LLM_MODEL), elegido por perfil o propiedad.
+- `GeneradorDeResumen` (interfaz): `GeneradorDeResumenStub` (por defecto) y
+  `LlmClient` real (RestClient hacia el servicio local de Gemma 4 E4B en
+  `ia/servidor.py`; URL y modelo por env: LLM_URL, LLM_MODEL), elegido por
+  propiedad `ticketera.ia.generador`.
 - Resiliencia: timeout y fallback (si el LLM falla, devolver solo el ranking).
 - Privacidad: al LLM solo tipo, barrio, titulo y descripcion; nunca nombre ni contacto.
   Paso explicito `SvcIA.anonimizar` (y en DetectorDeDuplicados) con

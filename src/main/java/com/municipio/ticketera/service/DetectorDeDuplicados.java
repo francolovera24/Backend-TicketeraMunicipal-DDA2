@@ -2,6 +2,7 @@ package com.municipio.ticketera.service;
 
 import com.municipio.ticketera.domain.Estado;
 import com.municipio.ticketera.domain.Reclamo;
+import com.municipio.ticketera.repository.ImagenReclamoRepository;
 import com.municipio.ticketera.repository.ReclamoRepository;
 import com.municipio.ticketera.service.ComparadorDeReclamos.ReclamoParaComparar;
 import com.municipio.ticketera.util.Anonimizador;
@@ -34,18 +35,25 @@ public class DetectorDeDuplicados {
     private final ReclamoRepository repo;
     private final ComparadorDeReclamos comparador;
     private final ConfiguracionTicketera.Duplicados config;
+    private final ImagenReclamoRepository imagenes;
 
     @Autowired
     public DetectorDeDuplicados(ReclamoRepository repo, ComparadorDeReclamos comparador,
-                                ConfiguracionTicketera configuracion) {
-        this(repo, comparador, configuracion.duplicados());
+                                ConfiguracionTicketera configuracion, ImagenReclamoRepository imagenes) {
+        this(repo, comparador, configuracion.duplicados(), imagenes);
     }
 
     DetectorDeDuplicados(ReclamoRepository repo, ComparadorDeReclamos comparador,
                          ConfiguracionTicketera.Duplicados config) {
+        this(repo, comparador, config, null);
+    }
+
+    private DetectorDeDuplicados(ReclamoRepository repo, ComparadorDeReclamos comparador,
+                                 ConfiguracionTicketera.Duplicados config, ImagenReclamoRepository imagenes) {
         this.repo = repo;
         this.comparador = comparador;
         this.config = config;
+        this.imagenes = imagenes;
     }
 
     /** El reclamo original del que este es duplicado, si lo hay. */
@@ -59,7 +67,8 @@ public class DetectorDeDuplicados {
         }
         try {
             OptionalInt indice = comparador.buscarMismoProblema(
-                    new ReclamoParaComparar(reclamo.getTipo(), tituloAnonimo(reclamo), descripcionAnonima(reclamo), null),
+                    new ReclamoParaComparar(reclamo.getTipo(), tituloAnonimo(reclamo), descripcionAnonima(reclamo),
+                            null, foto(reclamo)),
                     candidatos.stream().map(otro -> paraComparar(reclamo, otro)).toList());
             log.info("duplicados.comparacion", "reclamoId", reclamo.getId(), "candidatos", candidatos.size(),
                     "coincidencia", indice.isPresent() ? "si" : "no");
@@ -98,11 +107,20 @@ public class DetectorDeDuplicados {
                 : Double.MAX_VALUE;
     }
 
-    private static ReclamoParaComparar paraComparar(Reclamo nuevo, Reclamo candidato) {
+    private ReclamoParaComparar paraComparar(Reclamo nuevo, Reclamo candidato) {
         double distancia = distanciaOrden(nuevo, candidato);
         Integer metros = distancia == Double.MAX_VALUE ? null : (int) Math.round(distancia);
         return new ReclamoParaComparar(candidato.getTipo(), tituloAnonimo(candidato), descripcionAnonima(candidato),
-                metros);
+                metros, foto(candidato));
+    }
+
+    private ImagenAdjunta foto(Reclamo reclamo) {
+        if (imagenes == null || !reclamo.isTieneImagen()) {
+            return null;
+        }
+        return imagenes.findById(reclamo.getId())
+                .map(img -> new ImagenAdjunta(img.getMediaType(), img.getContenido()))
+                .orElse(null);
     }
 
     /** Mismo paso de privacidad que el resumen: el comparador puede ser el LLM. */

@@ -2,6 +2,10 @@
 # Los valores por defecto sirven solo para correr en local contra el docker-compose.
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    # La foto viaja en el JSON del alta, ya comprimida por el navegador.
+    max-http-form-post-size: 8MB
+    max-swallow-size: 8MB
 
 spring:
   application:
@@ -67,15 +71,15 @@ ticketera:
     jwt-secret: ${JWT_SECRET:dev-solo-desarrollo-cambiar-en-produccion-0123456789}
     jwt-expiracion: 24h
   ia:
-    # stub (por defecto, sin credenciales) o llm (Gemini, requiere LLM_API_KEY)
+    # stub (por defecto) o llm (Gemma 4 local, servicio en LLM_URL)
     generador: ${IA_GENERADOR:stub}
     cache-ttl-minutos: 5
     llm:
-      url: ${LLM_URL:https://generativelanguage.googleapis.com/v1beta}
-      modelo: ${LLM_MODEL:gemini-3.8-flash}
-      api-key: ${LLM_API_KEY:}
-      timeout-conexion: 3s
-      timeout-lectura: 20s
+      url: ${LLM_URL:http://localhost:8090}
+      modelo: ${LLM_MODEL:google/gemma-4-E4B-it}
+      timeout-conexion: 5s
+      # La primera generacion en CPU puede tardar; en GPU suele ser mucho menos.
+      timeout-lectura: 120s
   duplicados:
     habilitado: ${DUPLICADOS_HABILITADO:true}
     radio-metros: 150

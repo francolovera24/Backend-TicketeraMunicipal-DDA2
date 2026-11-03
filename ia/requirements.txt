@@ -1,0 +1,10 @@
+# Gemma 4 E4B (google/gemma-4-E4B-it). Texto e imagenes, como en la ficha del modelo.
+# En una maquina con NVIDIA, el torch de PyPI incluye CUDA.
+transformers
+torch
+torchvision
+accelerate
+bitsandbytes
+fastapi
+uvicorn
+pillow
