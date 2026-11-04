@@ -27,7 +27,7 @@ class NominatimRealIT extends IntegracionBase {
         assertThat(configuracion.geo().habilitado()).isTrue();
         Map<String, Object> solicitud = Map.of(
                 "ciudadanoId", crearCiudadano(),
-                "tipo", "BACHEO",
+                "tipo", "BACHEO", "alcance", "PERSONAL",
                 "titulo", "Bache de prueba",
                 "descripcion", "Bache de prueba frente a la avenida",
                 "direccion", "Avenida Cabildo 2040");

@@ -6,7 +6,7 @@ skinparam packageStyle rectangle
 
 package "Facade" {
     class Svc_Reclamos <<Facade>> {
-        +registrarReclamo(tipo, descripcion, ubicacion) : Reclamo
+        +registrarReclamo(tipo, alcance, titulo, descripcion, ubicacion) : Reclamo
         +cambiarEstado(id, estado) : Reclamo
         +consultarReclamos(barrio) : List<Reclamo>
     }
@@ -14,7 +14,7 @@ package "Facade" {
 
 package "Factory Method" {
     abstract class ReclamoFactory {
-        +crear(descripcion, ubicacion, barrio, ciudadano) : Reclamo
+        +crear(alcance, titulo, descripcion, ubicacion, barrio, ciudadano) : Reclamo
         #validar(...) : void
         #{abstract} construir(...) : Reclamo
     }
@@ -63,7 +63,7 @@ package "Strategy" {
 
     note bottom of ScorePorFormula
       score = pesoRiesgo*k + min(antiguedadHoras, tope)
-              + similaresEnBarrio*m
+              + similaresEnBarrio*m + (COLECTIVO ? 10 : 0)
       ScoreGenerico es el respaldo (va ultima)
     end note
 }

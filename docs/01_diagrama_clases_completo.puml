@@ -72,7 +72,7 @@ package "Capa Servicios (REST y SOAP)" {
 package "Capa Negocio" {
     class Svc_Reclamos <<Facade>> {
         -factories : Map<TipoDeReclamo, ReclamoFactory>
-        +registrarReclamo(tipo, descripcion, ubicacion) : Reclamo
+        +registrarReclamo(tipo, alcance, titulo, descripcion, ubicacion) : Reclamo
         +cambiarEstado(id, estado) : Reclamo
         +consultarReclamos(barrio) : List<Reclamo>
     }
@@ -118,7 +118,7 @@ package "Capa Negocio" {
 
 package "Patrones" {
     abstract class ReclamoFactory <<Factory Method>> {
-        +crear(descripcion, ubicacion, barrio, ciudadano) : Reclamo
+        +crear(alcance, titulo, descripcion, ubicacion, barrio, ciudadano) : Reclamo
         #{abstract} construir(...) : Reclamo
     }
     class "Cableado / Bacheo / Alumbrado /\nArbolado / RuidosReclamoFactory" as FabricasConcretas
@@ -168,6 +168,7 @@ package "Dominio" {
         -id : UUID
         -descripcion : String
         -tipo : TipoDeReclamo
+        -alcance : AlcanceReclamo
         -ubicacion : Ubicacion
         -estado : Estado
         -scoreCriticidad : int
@@ -227,6 +228,11 @@ package "Dominio" {
         RESUELTO
         RECHAZADO
         DUPLICADO
+    }
+
+    enum AlcanceReclamo {
+        PERSONAL
+        COLECTIVO
     }
 
     enum TipoDeReclamo {
@@ -373,4 +379,9 @@ Repo_Reclamo -[hidden]down- Reclamo
 Repo_Usuario -[hidden]down- Ciudadano
 API_Geo -[hidden]down- Cuadrilla
 Evento -[hidden]right- ReclamoFactory
+Reclamo --> AlcanceReclamo
+note right of AlcanceReclamo
+  Obligatorio al crear; historicos pueden tener null.
+  COLECTIVO suma 10 al score; PERSONAL y null suman 0.
+end note
 @enduml

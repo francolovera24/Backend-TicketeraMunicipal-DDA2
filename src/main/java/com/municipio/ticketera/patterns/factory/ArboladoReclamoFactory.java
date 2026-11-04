@@ -1,5 +1,6 @@
 package com.municipio.ticketera.patterns.factory;
 
+import com.municipio.ticketera.domain.AlcanceReclamo;
 import com.municipio.ticketera.domain.Barrio;
 import com.municipio.ticketera.domain.Ciudadano;
 import com.municipio.ticketera.domain.Reclamo;
@@ -16,8 +17,8 @@ public class ArboladoReclamoFactory extends ReclamoFactory {
     }
 
     @Override
-    protected Reclamo construir(String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+    protected Reclamo construir(AlcanceReclamo alcance, String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
                                 Ciudadano ciudadano) {
-        return new Reclamo(TipoDeReclamo.ARBOLADO, titulo, descripcion, ubicacion, barrio, ciudadano);
+        return new Reclamo(TipoDeReclamo.ARBOLADO, alcance, titulo, descripcion, ubicacion, barrio, ciudadano);
     }
 }

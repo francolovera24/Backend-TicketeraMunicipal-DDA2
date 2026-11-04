@@ -43,6 +43,10 @@ public class Reclamo {
     @Column(nullable = false, length = 30)
     private TipoDeReclamo tipo;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10)
+    private AlcanceReclamo alcance;
+
     @Embedded
     private Ubicacion ubicacion;
 
@@ -91,9 +95,10 @@ public class Reclamo {
         // requerido por JPA
     }
 
-    public Reclamo(TipoDeReclamo tipo, String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+    public Reclamo(TipoDeReclamo tipo, AlcanceReclamo alcance, String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
                    Ciudadano ciudadano) {
         this.tipo = tipo;
+        this.alcance = alcance;
         this.titulo = titulo;
         this.descripcion = descripcion;
         this.ubicacion = ubicacion;
@@ -172,6 +177,10 @@ public class Reclamo {
 
     public TipoDeReclamo getTipo() {
         return tipo;
+    }
+
+    public AlcanceReclamo getAlcance() {
+        return alcance;
     }
 
     public Ubicacion getUbicacion() {

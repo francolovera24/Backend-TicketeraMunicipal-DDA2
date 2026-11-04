@@ -1,5 +1,6 @@
 package com.municipio.ticketera.patterns.factory;
 
+import com.municipio.ticketera.domain.AlcanceReclamo;
 import com.municipio.ticketera.domain.Barrio;
 import com.municipio.ticketera.domain.Ciudadano;
 import com.municipio.ticketera.domain.Reclamo;
@@ -19,16 +20,17 @@ public abstract class ReclamoFactory {
     static final int MAX_DESCRIPCION = 1000;
     static final int MAX_DIRECCION = 255;
 
-    public final Reclamo crear(String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+    public final Reclamo crear(AlcanceReclamo alcance, String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
                                Ciudadano ciudadano) {
+        Validador.presente(alcance, "alcance");
         validar(titulo, descripcion, ubicacion, barrio, ciudadano);
-        return construir(titulo.trim(), descripcion.trim(), ubicacion, barrio, ciudadano);
+        return construir(alcance, titulo.trim(), descripcion.trim(), ubicacion, barrio, ciudadano);
     }
 
     /** Tipo de reclamo que fabrica esta implementacion. */
     public abstract TipoDeReclamo getTipo();
 
-    protected abstract Reclamo construir(String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+    protected abstract Reclamo construir(AlcanceReclamo alcance, String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
                                          Ciudadano ciudadano);
 
     /** Paso de validacion del metodo plantilla; una subclase puede sumar reglas propias. */

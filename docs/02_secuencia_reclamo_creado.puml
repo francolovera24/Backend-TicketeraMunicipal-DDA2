@@ -15,16 +15,16 @@ participant "DetectorDeDuplicados" as Detector
 participant "API_LLM" as LLM
 participant "Svc_Cuadrillas\n<<Observer>>" as Cuadrillas
 
-Vecino -> WebApp : crearReclamo(descripcion, ubicacion)
+Vecino -> WebApp : crearReclamo(alcance, titulo, descripcion, ubicacion)
 WebApp -> REST : altaReclamo(dto)
 note right of REST : POST /reclamos es publico:\nel vecino no necesita cuenta
 
-alt dto invalido (Bean Validation: campos vacios, tipo inexistente)
+alt dto invalido (Bean Validation: campos vacios, tipo inexistente, alcance ausente o invalido)
     REST -> Errores : MethodArgumentNotValidException
     Errores --> WebApp : 400 Bad Request (problem+json con los campos)
 else dto valido
-    REST -> Svc : registrarReclamo(tipo, descripcion, ubicacion)
-    Svc -> Factory : crear(tipo, descripcion, ubicacion)
+    REST -> Svc : registrarReclamo(tipo, alcance, titulo, descripcion, ubicacion)
+    Svc -> Factory : crear(alcance, titulo, descripcion, ubicacion, barrio, ciudadano)
     Factory -> Factory : validar(...) con Validador
 
     alt regla de validacion incumplida (ej. coordenadas fuera de rango, sin barrio)
@@ -69,6 +69,7 @@ alt es duplicado
     IA -> Repo : marcarDuplicadoDe(original)
     note right of IA : estado DUPLICADO,\nno se asigna cuadrilla
 else no es duplicado
+    IA -> IA : calcular score por Strategy\n(+10 si alcance COLECTIVO)
     IA -> Repo : guardar score inicial
     IA -> Broker : publicar(ReclamoValidado)
 

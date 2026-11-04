@@ -123,6 +123,7 @@ abstract class IntegracionBase {
         Map<String, Object> cuerpo = new HashMap<>();
         cuerpo.put("ciudadanoId", ciudadanoId);
         cuerpo.put("tipo", tipo);
+        cuerpo.put("alcance", "PERSONAL");
         cuerpo.put("titulo", "Reclamo de prueba");
         cuerpo.put("descripcion", descripcion);
         cuerpo.put("direccion", "Calle de prueba 123");

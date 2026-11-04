@@ -128,11 +128,16 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
 | ProveedorJwt / JwtAuthenticationFilter | config.ProveedorJwt / config.JwtAuthenticationFilter |
 
 ## Dominio
-- Reclamo: id, titulo, descripcion, tipo, ubicacion (value object `Ubicacion`: direccion +
+- Reclamo: id, titulo, descripcion, tipo, alcance, ubicacion (value object `Ubicacion`: direccion +
   `Coordenadas` opcionales; `Coordenadas` es un record lat/lon siempre valido
   que sabe calcular la distancia a otro punto),
   barrio, ciudadano, estado, fechas, scoreCriticidad, urgente.
   Metodos: cambiarEstado, marcarUrgente, calcularAntiguedad (horas).
+- AlcanceReclamo: PERSONAL o COLECTIVO, independiente de TipoDeReclamo.
+  POST /reclamos exige alcance; ausente, null o invalido devuelve 400.
+  Se propaga por servicio y fabrica a Reclamo y se expone en ReclamoResponse.
+  V9 agrega la columna nullable: historicos sin informacion conservan null
+  (Sin especificar en la web). V8 conserva la migracion de fotos.
 - Estado: NUEVO, EN_ANALISIS, ASIGNADO, EN_PROCESO, RESUELTO, RECHAZADO, DUPLICADO.
   Reclamo tiene `reclamoOriginal` (si es DUPLICADO) y `marcarDuplicadoDe`.
 - `Reclamo.cambiarEstado` rechaza ASIGNADO y DUPLICADO. Esos estados requieren
@@ -163,7 +168,9 @@ nombres del contrato publico que no se cambian: `ResumenDeZona`,
   urgente. `SvcReclamos` NUNCA hace `new Reclamo`.
 - Facade: `SvcReclamos` orquesta factory + repositorio + broker.
 - Strategy: `CriticidadStrategy` + una por tipo (Cableado, Bacheo) + `ScoreGenerico`
-  de respaldo. Formula: pesoRiesgo*k + min(antiguedadHoras, tope) + similaresEnBarrio*m.
+  de respaldo. Formula: pesoRiesgo*k + min(antiguedadHoras, tope) + similaresEnBarrio*m + (alcance COLECTIVO ? 10 : 0).
+  El adicional aplica al score inicial y al ranking. Personal e historico no
+  reciben adicional. SvcIA sigue seleccionando la estrategia.
   Cableado k=10 tope=48 m=5; Bacheo k=5 tope=72 m=15; Generico k=5 tope=96 m=3.
 - Observer: `Sujeto` (implementa Broker) y `Observador` (SvcCuadrillas, SvcIA).
 - Repository: interfaces Spring Data JPA.

@@ -8,6 +8,7 @@ class Reclamo {
     -id : UUID
     -descripcion : String
     -tipo : TipoDeReclamo
+    -alcance : AlcanceReclamo
     -ubicacion : Ubicacion
     -estado : Estado
     -fechaCreacion : Instant
@@ -86,6 +87,11 @@ enum Estado {
     DUPLICADO
 }
 
+enum AlcanceReclamo {
+    PERSONAL
+    COLECTIVO
+}
+
 enum TipoDeReclamo {
     CABLEADO (10)
     BACHEO (5)
@@ -123,4 +129,9 @@ Cuadrilla --> TipoDeReclamo : especialidad
 Ciudadano "0..1" --> "0..1" Usuario : cuenta (opcional)
 Usuario --> Rol
 ResumenDeZona "1" --> "N" Reclamo : ordena
+Reclamo --> AlcanceReclamo
+note right of AlcanceReclamo
+  Obligatorio al crear; historicos pueden tener null.
+  COLECTIVO suma 10 al score; PERSONAL y null suman 0.
+end note
 @enduml
