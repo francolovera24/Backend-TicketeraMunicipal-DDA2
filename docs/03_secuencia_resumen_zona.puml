@@ -48,7 +48,7 @@ else barrio valido
 
         loop por cada reclamo
             Svc -> Strategy : calcularScore(reclamo, similaresEnBarrio)
-            Strategy --> Svc : score
+            Strategy --> Svc : score base + 10 si COLECTIVO\n(PERSONAL e historico: +0)
         end
 
         Svc -> Svc : ordenarPorScore(reclamos)

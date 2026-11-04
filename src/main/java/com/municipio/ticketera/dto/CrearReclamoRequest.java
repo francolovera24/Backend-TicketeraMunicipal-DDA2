@@ -1,5 +1,6 @@
 package com.municipio.ticketera.dto;
 
+import com.municipio.ticketera.domain.AlcanceReclamo;
 import com.municipio.ticketera.domain.TipoDeReclamo;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
@@ -16,6 +17,10 @@ public record CrearReclamoRequest(
 
         @Schema(example = "CABLEADO")
         @NotNull TipoDeReclamo tipo,
+
+        @Schema(description = "A quien afecta: PERSONAL (solo quien reporta) o COLECTIVO (varias personas). Obligatorio.",
+                example = "COLECTIVO", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull AlcanceReclamo alcance,
 
         @Schema(description = "Titulo o asunto corto del reclamo", example = "Cable colgando sobre la vereda")
         @NotBlank @Size(max = 150) String titulo,

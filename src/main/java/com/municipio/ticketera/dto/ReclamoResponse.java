@@ -1,8 +1,10 @@
 package com.municipio.ticketera.dto;
 
+import com.municipio.ticketera.domain.AlcanceReclamo;
 import com.municipio.ticketera.domain.Estado;
 import com.municipio.ticketera.domain.Reclamo;
 import com.municipio.ticketera.domain.TipoDeReclamo;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -12,6 +14,8 @@ import java.util.UUID;
 public record ReclamoResponse(
         UUID id,
         TipoDeReclamo tipo,
+        @Schema(description = "Alcance informado al crear; null en historicos sin informacion.", nullable = true)
+        AlcanceReclamo alcance,
         String titulo,
         String descripcion,
         Estado estado,
@@ -34,6 +38,7 @@ public record ReclamoResponse(
         return new ReclamoResponse(
                 r.getId(),
                 r.getTipo(),
+                r.getAlcance(),
                 r.getTitulo(),
                 r.getDescripcion(),
                 r.getEstado(),

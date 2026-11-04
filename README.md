@@ -109,6 +109,7 @@ curl -X POST http://localhost:8080/reclamos \
   -d '{
         "ciudadanoId": "<id-del-ciudadano>",
         "tipo": "CABLEADO",
+        "alcance": "COLECTIVO",
         "titulo": "Cable colgando sobre la vereda",
         "descripcion": "Cable pelado colgando sobre la vereda",
         "direccion": "Av. Santa Fe 3200",
@@ -116,6 +117,33 @@ curl -X POST http://localhost:8080/reclamos \
       }'
 ```
 Tipos: `CABLEADO`, `BACHEO`, `ALUMBRADO`, `ARBOLADO`, `RUIDOS_MOLESTOS`.
+
+### Alcance y criticidad
+
+El alta exige `alcance`: `PERSONAL` si el problema afecta solamente a quien lo
+reporta, o `COLECTIVO` si afecta a varias personas. Es independiente del tipo.
+Ausencia, `null`, cadena vacia, numero o valor desconocido devuelven HTTP 400.
+Los clientes de `POST /reclamos` deben incluir este campo.
+
+`ReclamoResponse` incluye `alcance` en el alta, la consulta individual, los
+listados, los cambios de estado y el historial del ciudadano. Por ejemplo:
+
+```json
+{"tipo":"CABLEADO","alcance":"COLECTIVO"}
+```
+
+El fragmento anterior muestra los campos relacionados; los demas campos de la
+respuesta se conservan. Los registros historicos sin alcance devuelven
+`"alcance": null`, presentado como **Sin especificar** en la web. La migracion
+V9 agrega la columna nullable sin reclasificar registros ni modificar V1 a V8.
+
+`ScorePorFormula` conserva `pesoRiesgo*k + min(antiguedadHoras, tope) +
+similaresEnBarrio*m` y suma **10 puntos** si el alcance es colectivo. Personales
+e historicos reciben cero puntos adicionales. El adicional se aplica tanto al
+score inicial como al ranking de zona; el score del alta puede ser cero mientras
+la validacion asincronica esta pendiente. El ranking mantiene su orden habitual.
+
+Resultados de las verificaciones: [evidencias de alcance](docs/evidencias/alcance-reclamos.md).
 
 Consultar reclamos: todos o los de un barrio (ADMIN), o uno por id (publico,
 es el "consultar estado" del vecino):

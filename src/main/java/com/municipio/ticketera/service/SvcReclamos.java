@@ -1,5 +1,6 @@
 package com.municipio.ticketera.service;
 
+import com.municipio.ticketera.domain.AlcanceReclamo;
 import com.municipio.ticketera.domain.Barrio;
 import com.municipio.ticketera.domain.Ciudadano;
 import com.municipio.ticketera.domain.Estado;
@@ -68,15 +69,16 @@ public class SvcReclamos {
      * Si faltan el barrio o las coordenadas se consultan a API_Geo; el barrio
      * informado por el vecino tiene prioridad sobre el geocodificado.
      */
-    public Reclamo registrarReclamo(UUID ciudadanoId, TipoDeReclamo tipo, String titulo, String descripcion,
+    public Reclamo registrarReclamo(UUID ciudadanoId, TipoDeReclamo tipo, AlcanceReclamo alcance, String titulo, String descripcion,
                                     Ubicacion ubicacion, String nombreBarrio) {
-        return registrarReclamo(ciudadanoId, tipo, titulo, descripcion, ubicacion, nombreBarrio, null);
+        return registrarReclamo(ciudadanoId, tipo, alcance, titulo, descripcion, ubicacion, nombreBarrio, null);
     }
 
-    public Reclamo registrarReclamo(UUID ciudadanoId, TipoDeReclamo tipo, String titulo, String descripcion,
+    public Reclamo registrarReclamo(UUID ciudadanoId, TipoDeReclamo tipo, AlcanceReclamo alcance, String titulo, String descripcion,
                                     Ubicacion ubicacion, String nombreBarrio, ImagenAdjunta imagen) {
         Validador.presente(ciudadanoId, "ciudadanoId");
         Validador.presente(tipo, "tipo");
+        Validador.presente(alcance, "alcance");
         boolean faltaBarrio = nombreBarrio == null || nombreBarrio.isBlank();
         Ubicacion ubicacionFinal = ubicacion;
         String barrioFinal = nombreBarrio;
@@ -97,11 +99,11 @@ public class SvcReclamos {
             throw new ValidacionException(
                     "No se pudo determinar el barrio a partir de la direccion; informelo en el campo barrio");
         }
-        return registrar(ciudadanoId, tipo, titulo, descripcion, ubicacionFinal,
+        return registrar(ciudadanoId, tipo, alcance, titulo, descripcion, ubicacionFinal,
                 svcBarrios.resolverBarrio(barrioFinal), imagen);
     }
 
-    private Reclamo registrar(UUID ciudadanoId, TipoDeReclamo tipo, String titulo, String descripcion,
+    private Reclamo registrar(UUID ciudadanoId, TipoDeReclamo tipo, AlcanceReclamo alcance, String titulo, String descripcion,
                               Ubicacion ubicacion, Barrio barrio, ImagenAdjunta imagen) {
         ReclamoFactory fabrica = fabricas.get(tipo);
         if (fabrica == null) {
@@ -111,7 +113,7 @@ public class SvcReclamos {
         return tx.execute(estado -> {
             Ciudadano ciudadano = ciudadanoRepo.findById(ciudadanoId)
                     .orElseThrow(() -> new RecursoNoEncontradoException("Ciudadano", ciudadanoId));
-            Reclamo reclamo = repo.save(fabrica.crear(titulo, descripcion, ubicacion, barrio, ciudadano));
+            Reclamo reclamo = repo.save(fabrica.crear(alcance, titulo, descripcion, ubicacion, barrio, ciudadano));
             if (imagen != null) {
                 imagenes.save(new ImagenReclamo(reclamo.getId(), imagen.mediaType(), imagen.datos()));
                 reclamo.marcarConImagen();

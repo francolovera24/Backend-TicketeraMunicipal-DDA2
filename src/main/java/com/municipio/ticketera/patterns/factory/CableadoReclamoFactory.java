@@ -1,5 +1,6 @@
 package com.municipio.ticketera.patterns.factory;
 
+import com.municipio.ticketera.domain.AlcanceReclamo;
 import com.municipio.ticketera.domain.Barrio;
 import com.municipio.ticketera.domain.Ciudadano;
 import com.municipio.ticketera.domain.Reclamo;
@@ -19,9 +20,9 @@ public class CableadoReclamoFactory extends ReclamoFactory {
     }
 
     @Override
-    protected Reclamo construir(String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
+    protected Reclamo construir(AlcanceReclamo alcance, String titulo, String descripcion, Ubicacion ubicacion, Barrio barrio,
                                 Ciudadano ciudadano) {
-        Reclamo reclamo = new Reclamo(TipoDeReclamo.CABLEADO, titulo, descripcion, ubicacion, barrio, ciudadano);
+        Reclamo reclamo = new Reclamo(TipoDeReclamo.CABLEADO, alcance, titulo, descripcion, ubicacion, barrio, ciudadano);
         reclamo.marcarUrgente();
         return reclamo;
     }

@@ -57,10 +57,10 @@ public class ReclamoController {
             description = "Publica reclamo.creado. SvcIA lo valida en segundo plano: si repite un problema "
                     + "ya reportado queda DUPLICADO (con reclamoOriginalId); si no, se le asigna cuadrilla.")
     @ApiResponse(responseCode = "201", description = "Reclamo creado")
-    @ApiResponse(responseCode = "400", description = "Datos invalidos")
+    @ApiResponse(responseCode = "400", description = "Datos invalidos; alcance es obligatorio y debe ser PERSONAL o COLECTIVO")
     @ApiResponse(responseCode = "404", description = "Ciudadano inexistente")
     public ResponseEntity<ReclamoResponse> altaReclamo(@Valid @RequestBody CrearReclamoRequest dto) {
-        Reclamo reclamo = svcReclamos.registrarReclamo(dto.ciudadanoId(), dto.tipo(), dto.titulo(), dto.descripcion(),
+        Reclamo reclamo = svcReclamos.registrarReclamo(dto.ciudadanoId(), dto.tipo(), dto.alcance(), dto.titulo(), dto.descripcion(),
                 new Ubicacion(dto.direccion().trim(), dto.lat(), dto.lon()), dto.barrio(),
                 Imagenes.desde(dto.imagen(), dto.imagenTipo()));
         URI ubicacion = ServletUriComponentsBuilder.fromCurrentRequest()

@@ -63,7 +63,7 @@ class ActualizacionResumenIntegracionTest extends IntegracionBase {
         // Fixture sin eventos de alta en vuelo que pudieran invalidar la cache y ocultar el problema.
         Barrio barrio = barrios.resolverBarrio("Resumen-" + UUID.randomUUID());
         Ciudadano ciudadano = ciudadanos.save(new Ciudadano("Vecino test", UUID.randomUUID() + "@test.com"));
-        Reclamo reclamo = new BacheoReclamoFactory().crear("Pozo frente a la plaza",
+        Reclamo reclamo = new BacheoReclamoFactory().crear(com.municipio.ticketera.domain.AlcanceReclamo.PERSONAL, "Pozo frente a la plaza",
                 "Pozo frente a la plaza", new Ubicacion("Calle 123", null, null), barrio, ciudadano);
         if (origen == Estado.ASIGNADO) {
             Cuadrilla cuadrilla = new Cuadrilla("Bacheo resumen " + UUID.randomUUID(), TipoDeReclamo.BACHEO);
